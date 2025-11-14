@@ -28,6 +28,9 @@ export function createLocalFSProvider(): SourceProvider {
     async connect() {
       rootHandle = await (window as any).showDirectoryPicker()
     },
+    getRootHandle() {
+      return rootHandle
+    },
     async listAudioFilesRecursively(root: string) {
       if (!rootHandle) throw new Error('not connected')
       const result: string[] = []

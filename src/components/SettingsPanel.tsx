@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import SourcePanel from './SourcePanel'
 import { useSettings } from '../stores/settings'
+//
 
 export default function SettingsPanel() {
   const settings = useSettings()
@@ -51,6 +52,14 @@ export default function SettingsPanel() {
     settings.updatePreferences({ notifications: enabled })
   }
 
+  async function resetSite() {
+    const ok = confirm('确认重置站点并清除所有数据吗？此操作不可撤销。')
+    if (!ok) return
+    try { indexedDB.deleteDatabase('music-player-db') } catch {}
+    try { localStorage.clear() } catch {}
+    location.reload()
+  }
+
   return (
     <div className="panel" style={{ padding: 12 }}>
       <div className="col" style={{ gap: 16 }}>
@@ -76,6 +85,7 @@ export default function SettingsPanel() {
         <div className="row" style={{ gap: 8 }}>
           <button className="btn" onClick={exportBackup}>导出备份</button>
           <button className="btn" onClick={importBackup}>导入备份</button>
+          <button className="btn" onClick={resetSite} style={{ marginLeft: 8 }}>重置站点</button>
         </div>
         <div className="col" style={{ gap: 8 }}>
           <span className="muted">账户与存储源设置</span>

@@ -22,6 +22,9 @@ type Actions = {
   removeManyFromPlaylist: (id: ID, trackIds: ID[]) => void
   validatePlaylistRefs: () => void
   importPlaylistsWithValidation: (data: Playlist[]) => void
+  sortPlaylist: (id: ID, key: Playlist['sortKey'], direction: Playlist['sortDirection'], mode: Playlist['sortMode']) => void
+  dedupePlaylist: (id: ID) => void
+  moveSelected: (id: ID, selectedIds: ID[], toIndex: number) => void
 }
 
 export const usePlaylists = create<State & Actions>()(persist((set, get) => ({
@@ -92,6 +95,55 @@ export const usePlaylists = create<State & Actions>()(persist((set, get) => ({
     if (!p) return
     const remove = new Set(trackIds)
     const next = p.trackIds.filter(x => !remove.has(x))
+    set({ playlists: { ...get().playlists, [id]: { ...p, trackIds: next, updatedAt: Date.now() } } })
+  },
+  sortPlaylist(id, key, direction, mode) {
+    const p = get().playlists[id]
+    if (!p) return
+    const lib = useLibrary.getState().tracks
+    const dir = direction === 'desc' ? -1 : 1
+    const val = (tid: ID) => {
+      const t = lib[tid]
+      if (!t) return ''
+      switch (key) {
+        case 'title': return t.title || ''
+        case 'artist': return t.artist || ''
+        case 'album': return t.album || ''
+        case 'trackNo': return t.trackNo || 0
+        case 'duration': return t.duration || 0
+        case 'createdAt': return p.createdAt || 0
+        default: return ''
+      }
+    }
+    if (mode === 'materialize') {
+      const next = [...p.trackIds].sort((a, b) => {
+        const va = val(a) as any
+        const vb = val(b) as any
+        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+        return String(va).localeCompare(String(vb)) * dir
+      })
+      set({ playlists: { ...get().playlists, [id]: { ...p, trackIds: next, sortKey: key, sortDirection: direction, sortMode: mode, updatedAt: Date.now() } } })
+    } else {
+      set({ playlists: { ...get().playlists, [id]: { ...p, sortKey: key, sortDirection: direction, sortMode: mode, updatedAt: Date.now() } } })
+    }
+  },
+  dedupePlaylist(id) {
+    const p = get().playlists[id]
+    if (!p) return
+    const seen = new Set<ID>()
+    const next: ID[] = []
+    for (const tid of p.trackIds) { if (!seen.has(tid)) { seen.add(tid); next.push(tid) } }
+    set({ playlists: { ...get().playlists, [id]: { ...p, trackIds: next, updatedAt: Date.now() } } })
+  },
+  moveSelected(id, selectedIds, toIndex) {
+    const p = get().playlists[id]
+    if (!p || !selectedIds.length) return
+    const selected = new Set(selectedIds)
+    const remain = p.trackIds.filter(x => !selected.has(x))
+    let idx = Math.max(0, Math.min(remain.length, toIndex))
+    const block = p.trackIds.filter(x => selected.has(x))
+    const next = [...remain]
+    next.splice(idx, 0, ...block)
     set({ playlists: { ...get().playlists, [id]: { ...p, trackIds: next, updatedAt: Date.now() } } })
   },
   validatePlaylistRefs() {

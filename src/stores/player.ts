@@ -2,9 +2,26 @@ import create from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { PlaybackState, ID, Track } from '../providers/types'
 import { audio, setSource, play, pause, seek, setVolume, setMuted } from '../services/audio/PlayerCore'
+import { buildTrackFromBlob } from '../services/metadata/metadata'
 import { useLibrary } from './library'
 import { getBlob, putBlob } from '../services/cache/indexeddb'
 import { getProvider } from '../providers/registry'
+function delay(ms: number) { return new Promise(r => setTimeout(r, ms)) }
+async function writeDurationToLibrary(id: ID) {
+  for (let i = 0; i < 15; i++) {
+    await delay(100)
+    const dur = audio.duration
+    if (isFinite(dur) && dur > 0) {
+      const t = useLibrary.getState().tracks[id]
+      if (!t) return
+      const val = Math.floor(dur)
+      if (!t.duration || Math.abs((t.duration || 0) - val) >= 1) {
+        useLibrary.getState().upsertTracks([{ ...t, duration: val } as Track])
+      }
+      return
+    }
+  }
+}
 
 type Actions = {
   loadTrack: (id: ID, blob?: Blob | string) => Promise<void>
@@ -34,6 +51,7 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
     if (!track) return
     if (blob) {
       await setSource(blob)
+      writeDurationToLibrary(id)
     } else {
       const cached = await getBlob('audioBlobs', id)
       if (cached) await setSource(cached)
@@ -43,6 +61,17 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
           const dl = await provider.readFile(track.sourceRef.pathOrKey)
           await putBlob('audioBlobs', id, dl)
           await setSource(dl)
+          writeDurationToLibrary(id)
+          try {
+            const name = track.sourceRef.pathOrKey.split('/').pop() || 'audio'
+            const parsed = await buildTrackFromBlob({ blob: dl, name, providerId: track.sourceRef.providerId, pathOrKey: track.sourceRef.pathOrKey, sourceType: track.sourceType })
+            const merged = { ...track }
+            for (const k of ['title','artist','album','albumArtist','trackNo','discNo','duration','year','genres','cover','format','bitrate','sampleRate','channels'] as const) {
+              const v = (parsed as any)[k]
+              if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) (merged as any)[k] = v
+            }
+            useLibrary.getState().upsertTracks([merged as any])
+          } catch {}
         }
       }
     }
@@ -58,7 +87,20 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
   async loadTrackWithoutPlay(id, blob) {
     const track = useLibrary.getState().tracks[id]
     if (!track) return
-    if (blob) await setSource(blob)
+    if (blob) {
+      await setSource(blob)
+      try {
+        const name = track.sourceRef.pathOrKey.split('/').pop() || 'audio'
+        const parsed = await buildTrackFromBlob({ blob, name, providerId: track.sourceRef.providerId, pathOrKey: track.sourceRef.pathOrKey, sourceType: track.sourceType })
+        const merged = { ...track }
+        for (const k of ['title','artist','album','albumArtist','trackNo','discNo','duration','year','genres','cover','format','bitrate','sampleRate','channels'] as const) {
+          const v = (parsed as any)[k]
+          if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) (merged as any)[k] = v
+        }
+        useLibrary.getState().upsertTracks([merged as any])
+      } catch {}
+      writeDurationToLibrary(id)
+    }
     set({ currentTrackId: id, isPlaying: false })
     pause()
   },

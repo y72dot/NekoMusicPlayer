@@ -1,0 +1,137 @@
+import { putJSON, getJSON } from '../cache/indexeddb'
+import { useSettings } from '../../stores/settings'
+import { usePlaylists } from '../../stores/playlists'
+import { useLibrary } from '../../stores/library'
+
+let rootHandle: FileSystemDirectoryHandle | null = null
+let nmpDirHandle: FileSystemDirectoryHandle | null = null
+let flushing = false
+let scheduled = false
+
+export function isFsSupported() {
+  return typeof (window as any).showDirectoryPicker !== 'undefined'
+}
+
+export async function setRootHandle(h: FileSystemDirectoryHandle) {
+  rootHandle = h
+  await putJSON('fs.rootHandle', h)
+}
+
+export async function loadRootHandleFromIDB() {
+  if (rootHandle) return rootHandle
+  const h = await getJSON<FileSystemDirectoryHandle>('fs.rootHandle')
+  rootHandle = h || null
+  return rootHandle
+}
+
+async function ensureDir(name: string) {
+  if (!rootHandle) return null
+  const dir = await rootHandle.getDirectoryHandle(name, { create: true })
+  return dir
+}
+
+export async function ensureNmpData() {
+  if (!rootHandle) return null
+  nmpDirHandle = await ensureDir('.nmpdata')
+  if (!nmpDirHandle) return null
+  try {
+    const fh = await nmpDirHandle.getFileHandle('marker.json', { create: true })
+    const w = await (fh as any).createWritable()
+    const markerId = crypto.randomUUID()
+    await w.write(new Blob([JSON.stringify({ rootId: markerId, storageVersion: 1, ts: Date.now() })], { type: 'application/json' }))
+    await w.close()
+    try { localStorage.setItem('nmp.rootMarkerId', markerId); localStorage.setItem('nmp.fsRootSelected', 'true') } catch {}
+  } catch {}
+  return nmpDirHandle
+}
+
+async function getNmpDir() {
+  if (nmpDirHandle) return nmpDirHandle
+  if (!rootHandle) return null
+  nmpDirHandle = await ensureDir('.nmpdata')
+  return nmpDirHandle
+}
+
+async function writeTextFile(dir: FileSystemDirectoryHandle, name: string, text: string) {
+  const fh = await dir.getFileHandle(name, { create: true })
+  const w = await (fh as any).createWritable()
+  await w.write(new Blob([text], { type: 'application/json' }))
+  await w.close()
+}
+
+export async function writeJson(path: string, obj: any) {
+  const dir = await getNmpDir()
+  if (!dir) return
+  await writeTextFile(dir, path, JSON.stringify(obj))
+}
+
+async function getSubDir(name: string) {
+  const dir = await getNmpDir()
+  if (!dir) return null
+  const sub = await dir.getDirectoryHandle(name, { create: true })
+  return sub
+}
+
+async function toHex(u8: Uint8Array) {
+  return Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+export async function hashId(id: string) {
+  const enc = new TextEncoder().encode(id)
+  const buf = await crypto.subtle.digest('SHA-256', enc)
+  return await toHex(new Uint8Array(buf))
+}
+
+export async function writeCover(id: string, blob: Blob) {
+  const sub = await getSubDir('covers')
+  if (!sub) return
+  const name = `${await hashId(id)}.webp`
+  const fh = await sub.getFileHandle(name, { create: true })
+  const w = await (fh as any).createWritable()
+  await w.write(blob)
+  await w.close()
+}
+
+export async function writeAudioCache(id: string, blob: Blob) {
+  const sub = await getSubDir('audio-cache')
+  if (!sub) return
+  const name = `${await hashId(id)}.bin`
+  const fh = await sub.getFileHandle(name, { create: true })
+  const w = await (fh as any).createWritable()
+  await w.write(blob)
+  await w.close()
+}
+
+export async function flushAll() {
+  if (!isFsSupported()) return
+  if (!rootHandle) return
+  if (flushing) { scheduled = true; return }
+  flushing = true
+  try {
+    const settings = useSettings.getState()
+    const playlists = usePlaylists.getState()
+    const library = useLibrary.getState()
+    await writeJson('settings.json', { dropbox: settings.dropbox, oss: settings.oss, cos: settings.cos, preferences: settings.preferences })
+    await writeJson('playlists.json', { playlists: playlists.playlists, order: playlists.order, currentPlaylistId: playlists.currentPlaylistId })
+    await writeJson('library.json', { tracks: library.tracks, order: library.order })
+  } finally {
+    flushing = false
+    if (scheduled) { scheduled = false; flushAll() }
+  }
+}
+
+export function scheduleFlush() {
+  flushAll()
+}
+
+export async function clearNmpData() {
+  if (!isFsSupported()) return false
+  const h = await loadRootHandleFromIDB()
+  if (!h) return false
+  try {
+    await h.removeEntry('.nmpdata', { recursive: true } as any)
+  } catch {}
+  try { localStorage.removeItem('nmp.fsRootSelected'); localStorage.removeItem('nmp.rootMarkerId') } catch {}
+  await putJSON('fs.rootHandle', null as any)
+  return true
+}

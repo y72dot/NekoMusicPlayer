@@ -1,6 +1,6 @@
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { enrichByMusicBrainz } from '../services/metadata/musicbrainz'
 
 export default function NowPlaying() {
@@ -8,8 +8,27 @@ export default function NowPlaying() {
   const player = usePlayer()
   const track = player.currentTrackId ? lib.tracks[player.currentTrackId] : undefined
   const [form, setForm] = useState(() => track)
+  useEffect(() => { setForm(track) }, [player.currentTrackId, track?.id])
+  function startResize(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--right-width')) || 320
+    function onMove(ev: MouseEvent) {
+      const dx = startX - ev.clientX
+      const w = Math.min(520, Math.max(260, startW + dx))
+      document.documentElement.style.setProperty('--right-width', `${w}px`)
+    }
+    function onUp() {
+      const w = getComputedStyle(document.documentElement).getPropertyValue('--right-width').trim()
+      try { localStorage.setItem('layout.rightWidth', w) } catch {}
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
-  if (!track) return <div className="panel right" style={{ padding: 12 }}>未选择曲目</div>
+  if (!track) return <div className="panel right" style={{ padding: 12 }}><div className="resizer resizer-left" onMouseDown={startResize} />未选择曲目</div>
 
   function save() {
     lib.upsertTracks([{ ...track, ...form } as any])
@@ -40,6 +59,7 @@ export default function NowPlaying() {
           <button className="btn" onClick={save}>保存元数据</button>
         </div>
       </div>
+      <div className="resizer resizer-left" onMouseDown={startResize} />
     </div>
   )
 }

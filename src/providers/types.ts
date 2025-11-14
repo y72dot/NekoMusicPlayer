@@ -36,6 +36,9 @@ export interface Playlist {
   trackIds: ID[]
   createdAt: number
   updatedAt: number
+  sortKey?: 'title' | 'artist' | 'album' | 'trackNo' | 'duration' | 'createdAt'
+  sortDirection?: 'asc' | 'desc'
+  sortMode?: 'view' | 'materialize'
 }
 
 export interface PlaybackState {

@@ -4,6 +4,24 @@ import { usePlaylists } from '../stores/playlists'
 export default function PlaylistPanel() {
   const p = usePlaylists()
   const [name, setName] = useState('新建歌单')
+  function startResize(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--left-width')) || 260
+    function onMove(ev: MouseEvent) {
+      const dx = ev.clientX - startX
+      const w = Math.min(420, Math.max(180, startW + dx))
+      document.documentElement.style.setProperty('--left-width', `${w}px`)
+    }
+    function onUp() {
+      const w = getComputedStyle(document.documentElement).getPropertyValue('--left-width').trim()
+      try { localStorage.setItem('layout.leftWidth', w) } catch {}
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   function exportJson() {
     const data = p.order.map(id => p.playlists[id])
@@ -44,7 +62,16 @@ export default function PlaylistPanel() {
           <button className="btn" onClick={() => p.setCurrent('__all__')}>全部歌曲</button>
         </div>
         {p.order.map(id => (
-          <div key={id} className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+          <div key={id} className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }} onDragOver={e => e.preventDefault()} onDrop={e => {
+            e.preventDefault()
+            const data = e.dataTransfer.getData('application/x-track-ids')
+            if (!data) return
+            try {
+              const json = JSON.parse(data)
+              const trackIds = Array.isArray(json.trackIds) ? json.trackIds : []
+              if (trackIds.length) p.addManyToPlaylist(id, trackIds, (e.altKey ? 'replace' : 'append'))
+            } catch {}
+          }}>
             <button className="btn" onClick={() => p.setCurrent(id)}>{p.playlists[id].name}</button>
             <div className="row" style={{ gap: 6 }}>
               <button className="btn" onClick={() => {
@@ -56,6 +83,7 @@ export default function PlaylistPanel() {
           </div>
         ))}
       </div>
+      <div className="resizer resizer-right" onMouseDown={startResize} />
     </div>
   )
 }

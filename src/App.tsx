@@ -9,6 +9,7 @@ import { usePlaylists } from './stores/playlists'
 import { usePlayer } from './stores/player'
 import { getBlob, putBlob } from './services/cache/indexeddb'
 import { useAudioState } from './services/audio/PlayerCore'
+import { isFsSupported, loadRootHandleFromIDB, ensureNmpData, scheduleFlush } from './services/storage/fs'
 
 export default function App() {
   const lib = useLibrary()
@@ -16,6 +17,34 @@ export default function App() {
   const player = usePlayer()
   const audioState = useAudioState()
   const [tab, setTab] = useState<'playlist'|'settings'|'player'>('playlist')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [lastIndex, setLastIndex] = useState<number | null>(null)
+  const [sortKey, setSortKey] = useState<'title'|'artist'|'album'|'trackNo'|'duration'|'createdAt'>('title')
+  const [sortDirection, setSortDirection] = useState<'asc'|'desc'>('asc')
+  const [sortMode, setSortMode] = useState<'view'|'materialize'>('view')
+  const [targetPlaylistId, setTargetPlaylistId] = useState<string | ''>('')
+  const [addMode, setAddMode] = useState<'append'|'replace'>('append')
+  const [dragActive, setDragActive] = useState(false)
+  const [dragPreviewOrder, setDragPreviewOrder] = useState<string[] | null>(null)
+  useEffect(() => {
+    try {
+      const lw = localStorage.getItem('layout.leftWidth')
+      const rw = localStorage.getItem('layout.rightWidth')
+      if (lw) document.documentElement.style.setProperty('--left-width', lw)
+      if (rw) document.documentElement.style.setProperty('--right-width', rw)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    ;(async () => {
+      if (!isFsSupported()) return
+      const flag = localStorage.getItem('nmp.fsRootSelected') === 'true'
+      if (!flag) return
+      const h = await loadRootHandleFromIDB()
+      if (!h) return
+      await ensureNmpData()
+    })()
+  }, [])
 
   const rows = useMemo(() => {
     if (!p.currentPlaylistId || p.currentPlaylistId === '__all__') return lib.order.map(id => lib.tracks[id])
@@ -25,6 +54,23 @@ export default function App() {
   useEffect(() => {
     player.setQueue(rows.map(r => r.id))
   }, [rows.length])
+
+  useEffect(() => {
+    const unsub1 = useLibrary.subscribe(s => s.tracks, () => scheduleFlush())
+    const unsub2 = useLibrary.subscribe(s => s.order, () => scheduleFlush())
+    const unsub3 = usePlaylists.subscribe(s => s.playlists, () => scheduleFlush())
+    const unsub4 = usePlaylists.subscribe(s => s.order, () => scheduleFlush())
+    const unsub5 = usePlaylists.subscribe(s => s.currentPlaylistId, () => scheduleFlush())
+    const unsub6 = usePlayer.subscribe(s => s.queue, () => scheduleFlush())
+    return () => {
+      try { unsub1() } catch {}
+      try { unsub2() } catch {}
+      try { unsub3() } catch {}
+      try { unsub4() } catch {}
+      try { unsub5() } catch {}
+      try { unsub6() } catch {}
+    }
+  }, [])
 
   async function onRowDoubleClick(id: string) {
     const blob = await getBlob('audioBlobs', id)
@@ -62,16 +108,34 @@ export default function App() {
   }, [audioState.duration, player.position, player.currentTrackId])
 
   function onDragStart(e: React.DragEvent<HTMLTableRowElement>, index: number) {
-    e.dataTransfer.setData('text/plain', String(index))
+    const ids = selectedIds.size ? Array.from(selectedIds) : [sorted[index].id]
+    e.dataTransfer.setData('application/x-track-ids', JSON.stringify({ trackIds: ids, fromPlaylistId: p.currentPlaylistId || undefined }))
+    e.dataTransfer.effectAllowed = 'move'
+    setDragActive(true)
   }
-  function onDragOver(e: React.DragEvent<HTMLTableRowElement>) { e.preventDefault() }
+  function onDragOver(e: React.DragEvent<HTMLTableRowElement>, index: number) {
+    e.preventDefault()
+    const sel = new Set(selectedIds.size ? Array.from(selectedIds) : [])
+    const allIds = sorted.map(x => x.id)
+    const remain = allIds.filter(x => !sel.has(x))
+    const to = Math.max(0, Math.min(remain.length, index))
+    const block = allIds.filter(x => sel.has(x))
+    const next = [...remain]
+    next.splice(to, 0, ...block)
+    setDragPreviewOrder(next)
+  }
   function onDrop(e: React.DragEvent<HTMLTableRowElement>, index: number) {
     e.preventDefault()
     if (!p.currentPlaylistId) return
-    const from = parseInt(e.dataTransfer.getData('text/plain'))
-    if (!Number.isFinite(from)) return
-    p.reorderPlaylist(p.currentPlaylistId, from, index)
+    const sel = new Set(selectedIds.size ? Array.from(selectedIds) : [])
+    const allIds = sorted.map(x => x.id)
+    const remain = allIds.filter(x => !sel.has(x))
+    const to = Math.max(0, Math.min(remain.length, index))
+    p.moveSelected(p.currentPlaylistId, Array.from(sel), to)
+    setDragActive(false)
+    setDragPreviewOrder(null)
   }
+  function onDragEnd() { setDragActive(false); setDragPreviewOrder(null) }
 
   const [query, setQuery] = useState('')
   const filtered = useMemo(() => {
@@ -79,6 +143,103 @@ export default function App() {
     if (!q) return rows
     return rows.filter(t => (t.title || '').toLowerCase().includes(q) || (t.artist || '').toLowerCase().includes(q) || (t.album || '').toLowerCase().includes(q))
   }, [rows, query])
+
+  const sorted = useMemo(() => {
+    const list = [...filtered]
+    const k = sortKey
+    const dir = sortDirection === 'desc' ? -1 : 1
+    list.sort((a: any, b: any) => {
+      const va = k === 'createdAt' ? 0 : (a?.[k] ?? (typeof a?.[k] === 'number' ? 0 : ''))
+      const vb = k === 'createdAt' ? 0 : (b?.[k] ?? (typeof b?.[k] === 'number' ? 0 : ''))
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      return String(va).localeCompare(String(vb)) * dir
+    })
+    return list
+  }, [filtered, sortKey, sortDirection])
+
+  const displayed = useMemo(() => {
+    if (dragActive && dragPreviewOrder) return dragPreviewOrder.map(id => lib.tracks[id]).filter(Boolean)
+    return sorted
+  }, [dragActive, dragPreviewOrder, sorted, lib.tracks])
+
+  function onRowClick(e: React.MouseEvent<HTMLTableRowElement>, index: number, id: string) {
+    const s = new Set(selectedIds)
+    if (e.shiftKey && lastIndex !== null) {
+      const [start, end] = [Math.min(lastIndex, index), Math.max(lastIndex, index)]
+      for (let i = start; i <= end; i++) s.add(sorted[i].id)
+    } else if (e.ctrlKey || e.metaKey) {
+      if (s.has(id)) s.delete(id); else s.add(id)
+      setLastIndex(index)
+    } else {
+      s.clear(); s.add(id); setLastIndex(index)
+    }
+    setSelectedIds(s)
+  }
+
+  function clearSelection() { setSelectedIds(new Set()); setLastIndex(null) }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sorted.length && sorted.length > 0) { clearSelection() }
+    else { setSelectedIds(new Set(sorted.map(x => x.id))) }
+  }
+
+  function toggleCheckbox(e: any, index: number, id: string) {
+    if (e && e.stopPropagation) e.stopPropagation()
+    const s = new Set(selectedIds)
+    const shift = !!(e?.nativeEvent?.shiftKey)
+    if (shift && lastIndex !== null) {
+      const [start, end] = [Math.min(lastIndex, index), Math.max(lastIndex, index)]
+      for (let i = start; i <= end; i++) s.add(sorted[i].id)
+    } else {
+      if (s.has(id)) s.delete(id); else s.add(id)
+      setLastIndex(index)
+    }
+    setSelectedIds(s)
+  }
+
+  function applySort() {
+    if (!p.currentPlaylistId || p.currentPlaylistId === '__all__') return
+    p.sortPlaylist(p.currentPlaylistId, sortKey, sortDirection, sortMode)
+  }
+
+  function addSelectedToTarget() {
+    if (!targetPlaylistId) return
+    const ids = Array.from(selectedIds)
+    p.addManyToPlaylist(targetPlaylistId, ids, addMode)
+  }
+
+  function removeSelectedFromCurrent() {
+    if (!p.currentPlaylistId || p.currentPlaylistId === '__all__') return
+    const ids = Array.from(selectedIds)
+    p.removeManyFromPlaylist(p.currentPlaylistId, ids)
+    clearSelection()
+  }
+
+  function moveSelectedTop() {
+    if (!p.currentPlaylistId || p.currentPlaylistId === '__all__') return
+    const ids = Array.from(selectedIds)
+    p.moveSelected(p.currentPlaylistId, ids, 0)
+  }
+
+  function moveSelectedBottom() {
+    if (!p.currentPlaylistId || p.currentPlaylistId === '__all__') return
+    const ids = Array.from(selectedIds)
+    const len = p.playlists[p.currentPlaylistId]?.trackIds.length || 0
+    p.moveSelected(p.currentPlaylistId, ids, len)
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Delete') { removeSelectedFromCurrent() }
+    if (e.altKey && e.key === 'ArrowUp') { moveSelectedTop() }
+    if (e.altKey && e.key === 'ArrowDown') { moveSelectedBottom() }
+  }
+
+  function fmtDuration(d?: number) {
+    const x = Math.max(0, Math.floor(d || 0))
+    const m = Math.floor(x / 60)
+    const s = x % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
 
   return (
     <div className="app">
@@ -95,12 +256,47 @@ export default function App() {
             <PlaylistPanel />
             <div className="panel">
               <div className="list">
-                <div className="row" style={{ padding: '8px 12px' }}>
+                <div className="row searchbar">
                   <input placeholder="搜索" style={{ flex: 1 }} value={query} onChange={e => setQuery(e.target.value)} />
+                </div>
+                <div className="row" style={{ gap: 8, padding: '6px 12px' }} onKeyDown={onKeyDown} tabIndex={0}>
+                  <select value={sortKey} onChange={e => setSortKey(e.target.value as any)}>
+                    <option value="title">歌曲</option>
+                    <option value="artist">艺术家</option>
+                    <option value="album">专辑</option>
+                    <option value="trackNo">曲序号</option>
+                    <option value="duration">时长</option>
+                  </select>
+                  <select value={sortDirection} onChange={e => setSortDirection(e.target.value as any)}>
+                    <option value="asc">升序</option>
+                    <option value="desc">降序</option>
+                  </select>
+                  <select value={sortMode} onChange={e => setSortMode(e.target.value as any)}>
+                    <option value="view">仅视图</option>
+                    <option value="materialize">应用到歌单</option>
+                  </select>
+                  <button className="btn" onClick={applySort} disabled={!p.currentPlaylistId || p.currentPlaylistId==='__all__'}>排序</button>
+                  <span style={{ flex: 1 }} />
+                  <select value={targetPlaylistId} onChange={e => setTargetPlaylistId(e.target.value)}>
+                    <option value="">选择目标歌单</option>
+                    {p.order.map(id => (<option key={id} value={id}>{p.playlists[id].name}</option>))}
+                  </select>
+                  <select value={addMode} onChange={e => setAddMode(e.target.value as any)}>
+                    <option value="append">追加</option>
+                    <option value="replace">替换</option>
+                  </select>
+                  <button className="btn" onClick={addSelectedToTarget} disabled={!selectedIds.size || !targetPlaylistId}>添加到歌单</button>
+                  <button className="btn" onClick={() => { if (p.currentPlaylistId) p.dedupePlaylist(p.currentPlaylistId) }} disabled={!p.currentPlaylistId || p.currentPlaylistId==='__all__'}>去重</button>
+                  <button className="btn" onClick={removeSelectedFromCurrent} disabled={!selectedIds.size || !p.currentPlaylistId || p.currentPlaylistId==='__all__'}>从当前歌单移除</button>
+                  <button className="btn" onClick={moveSelectedTop} disabled={!selectedIds.size || !p.currentPlaylistId || p.currentPlaylistId==='__all__'}>置顶</button>
+                  <button className="btn" onClick={moveSelectedBottom} disabled={!selectedIds.size || !p.currentPlaylistId || p.currentPlaylistId==='__all__'}>置底</button>
                 </div>
                 <table>
                   <thead>
                   <tr>
+                    <th style={{ width: 28 }}>
+                      <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === sorted.length && sorted.length > 0} />
+                    </th>
                     <th style={{ width: 32 }}>#</th>
                     <th>歌曲</th>
                     <th>艺术家</th>
@@ -110,21 +306,25 @@ export default function App() {
                   </tr>
                   </thead>
                 </table>
-                <VList height={window.innerHeight - 200} itemCount={filtered.length} itemSize={40} width={'100%'}>
+                <VList height={window.innerHeight - 200} itemCount={displayed.length} itemSize={40} width={'100%'}>
                   {({ index, style }: any) => {
-                    const t = filtered[index]
+                    const t = displayed[index]
                     return (
                       <div style={style} key={t.id}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <tbody>
-                          <tr className="drag" draggable={!!p.currentPlaylistId}
-                              onDragStart={e => onDragStart(e, index)} onDragOver={onDragOver} onDrop={e => onDrop(e, index)}
-                              onDoubleClick={() => onRowDoubleClick(t.id)}>
+                          <tr className="drag" draggable={true}
+                              onDragStart={e => onDragStart(e, index)} onDragOver={e => onDragOver(e, index)} onDrop={e => onDrop(e, index)} onDragEnd={onDragEnd}
+                              onDoubleClick={() => onRowDoubleClick(t.id)} onClick={e => onRowClick(e, index, t.id)}
+                              style={{ background: selectedIds.has(t.id) ? 'var(--bg-hover)' : undefined }}>
+                            <td style={{ width: 28, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                              <input type="checkbox" checked={selectedIds.has(t.id)} onChange={e => toggleCheckbox(e, index, t.id)} />
+                            </td>
                             <td style={{ width: 32, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{index + 1}</td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.title}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.artist}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.album}</td>
-                            <td className="muted" style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{Math.round((t.duration || 0) / 60)}:{String(Math.round((t.duration || 0) % 60)).padStart(2, '0')}</td>
+                            <td className="muted" style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{fmtDuration(t.duration)}</td>
                             <td style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
                               <button className="btn" onClick={() => player.loadTrackWithoutPlay(t.id)}>编辑</button>
                             </td>

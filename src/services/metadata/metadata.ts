@@ -8,7 +8,7 @@ function toDataUrl(pic?: { data: Uint8Array; format: string }) {
   return URL.createObjectURL(blob)
 }
 
-function extToFormat(name: string): AudioFormat {
+export function extToFormat(name: string): AudioFormat {
   const ext = name.split('.').pop()?.toLowerCase()
   if (!ext) return 'unknown'
   if (ext === 'mp3') return 'mp3'
@@ -25,6 +25,7 @@ export async function buildTrackFromBlob(params: {
   providerId: string
   pathOrKey: string
   sourceType: Track['sourceType']
+  skipCover?: boolean
 }): Promise<Track> {
   const { blob, name, providerId, pathOrKey, sourceType } = params
   let title = name.replace(/\.[^.]+$/, '')
@@ -53,8 +54,10 @@ export async function buildTrackFromBlob(params: {
     bitrate = meta.format.bitrate ? Math.round(meta.format.bitrate) : undefined
     sampleRate = meta.format.sampleRate || undefined
     channels = meta.format.numberOfChannels || undefined
-    const pic = meta.common.picture?.[0]
-    cover = toDataUrl(pic)
+    if (!params.skipCover) {
+      const pic = meta.common.picture?.[0]
+      cover = toDataUrl(pic)
+    }
   } catch {}
 
   const format = extToFormat(name)

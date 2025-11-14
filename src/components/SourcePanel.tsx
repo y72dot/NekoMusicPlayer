@@ -8,6 +8,8 @@ import { usePlayer } from '../stores/player'
 import { putBlob, getBlob } from '../services/cache/indexeddb'
 import { useSettings } from '../stores/settings'
 import { registerProvider } from '../providers/registry'
+import { extToFormat } from '../services/metadata/metadata'
+import { setRootHandle, ensureNmpData, flushAll, scheduleFlush } from '../services/storage/fs'
 
 export default function SourcePanel() {
   const [scanning, setScanning] = useState(false)
@@ -29,15 +31,52 @@ export default function SourcePanel() {
     try {
       await local.connect()
       ;(window as any).__localfs = local
-      const items = await scanLocalFSTracks(local)
-      library.upsertTracks(items.map(i => i.track))
-      for (const { track, blob } of items) {
-        await putBlob('audioBlobs', track.id, blob)
+      try {
+        const h = (local as any).getRootHandle()
+        if (h) {
+          await setRootHandle(h)
+          await ensureNmpData()
+        }
+      } catch {}
+      const files = await local.listAudioFilesRecursively('/')
+      const tracks = files.map(p => ({
+        id: `${local.id}:${p}`,
+        title: p.split('/').pop() || 'audio',
+        artist: '',
+        album: '',
+        format: extToFormat(p),
+        sourceType: 'localfs',
+        sourceRef: { providerId: local.id, pathOrKey: p }
+      })) as any
+      library.upsertTracks(tracks)
+      if (!player.currentTrackId && tracks.length) {
+        player.setQueue(tracks.map((t: any) => t.id))
       }
-      if (!player.currentTrackId && items.length) {
-        player.setQueue(items.map(i => i.track.id))
-        await player.loadTrack(items[0].track.id, items[0].blob)
-      }
+      await flushAll()
+      ;(async () => {
+        const batch = 4
+        for (let i = 0; i < files.length; i += batch) {
+          const slice = files.slice(i, i + batch)
+          await Promise.all(slice.map(async p => {
+            try {
+              const blob = await local.readFile(p)
+              const name = p.split('/').pop() || 'audio'
+              const parsed = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: local.id, pathOrKey: p, sourceType: 'localfs', skipCover: true })
+              const id = `${local.id}:${p}`
+              const cur = useLibrary.getState().tracks[id]
+              if (!cur) return
+              const merged: any = { ...cur }
+              for (const k of ['title','artist','album','albumArtist','trackNo','discNo','duration','year','genres','cover','format','bitrate','sampleRate','channels'] as const) {
+                const v = (parsed as any)[k]
+                if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) merged[k] = v
+              }
+              library.upsertTracks([merged])
+              scheduleFlush()
+            } catch {}
+          }))
+          await new Promise(r => setTimeout(r, 0))
+        }
+      })()
     } finally {
       setScanning(false)
     }
@@ -59,7 +98,7 @@ export default function SourcePanel() {
         title: it.path.split('/').pop() || 'audio',
         artist: '',
         album: '',
-        format: 'unknown',
+        format: extToFormat(it.path),
         sourceType: 'custom',
         sourceRef: { providerId: dbx.id, pathOrKey: it.path }
       })) as any
@@ -96,7 +135,7 @@ export default function SourcePanel() {
         title: p.split('/').pop() || 'audio',
         artist: '',
         album: '',
-        format: 'unknown',
+        format: extToFormat(p),
         sourceType: 'custom',
         sourceRef: { providerId: oss.id, pathOrKey: p }
       })) as any
@@ -130,7 +169,7 @@ export default function SourcePanel() {
         title: p.split('/').pop() || 'audio',
         artist: '',
         album: '',
-        format: 'unknown',
+        format: extToFormat(p),
         sourceType: 'custom',
         sourceRef: { providerId: cos.id, pathOrKey: p }
       })) as any
