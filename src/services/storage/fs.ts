@@ -111,9 +111,26 @@ export async function flushAll() {
     const settings = useSettings.getState()
     const playlists = usePlaylists.getState()
     const library = useLibrary.getState()
+    const libTracks: any = {}
+    for (const id of Object.keys(library.tracks)) {
+      const t: any = library.tracks[id]
+      const core: any = {
+        uid: t.uid || t.id,
+        filename: t.filename || (t.sourceRef ? (t.sourceRef.pathOrKey.split('/').pop() || 'audio') : (t.title || 'audio')),
+        addedAt: t.addedAt || t.createdAt || Date.now(),
+        sources: t.sources || (t.sourceRef ? [{ kind: t.sourceType === 'localfs' ? 'fs' : 'custom', locator: t.sourceRef.pathOrKey || t.sourceRef.url || '', providerId: t.sourceRef.providerId, primary: true }] : []),
+        metaIndex: t.metaIndex || undefined
+      }
+      libTracks[core.uid] = core
+    }
+    const playlistsV2: any = {}
+    for (const pid of Object.keys(playlists.playlists)) {
+      const p: any = playlists.playlists[pid]
+      playlistsV2[pid] = { id: p.id, name: p.name, trackUids: (p.trackIds || []).map((x: any) => x) }
+    }
     await writeJson('settings.json', { dropbox: settings.dropbox, oss: settings.oss, cos: settings.cos, preferences: settings.preferences })
-    await writeJson('playlists.json', { playlists: playlists.playlists, order: playlists.order, currentPlaylistId: playlists.currentPlaylistId })
-    await writeJson('library.json', { tracks: library.tracks, order: library.order })
+    await writeJson('playlists.json', { version: 2, playlists: playlistsV2, order: playlists.order, currentPlaylistId: playlists.currentPlaylistId })
+    await writeJson('library.json', { version: 2, tracks: libTracks, order: library.order.map(id => library.tracks[id]?.uid || id) })
   } finally {
     flushing = false
     if (scheduled) { scheduled = false; flushAll() }

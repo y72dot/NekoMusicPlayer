@@ -17,6 +17,8 @@ export default function App() {
   const player = usePlayer()
   const audioState = useAudioState()
   const [tab, setTab] = useState<'playlist'|'settings'|'player'>('playlist')
+  const [editing, setEditing] = useState(false)
+  const [snapshot, setSnapshot] = useState<{ playlists: Record<string, any>; order: string[]; currentId?: string } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastIndex, setLastIndex] = useState<number | null>(null)
   const [sortKey, setSortKey] = useState<'title'|'artist'|'album'|'trackNo'|'duration'|'createdAt'>('title')
@@ -35,6 +37,21 @@ export default function App() {
     } catch {}
   }, [])
 
+  function beginEdit() {
+    const s = usePlaylists.getState()
+    setSnapshot({ playlists: { ...s.playlists }, order: [...s.order], currentId: s.currentPlaylistId })
+    setEditing(true)
+  }
+  function cancelEdit() {
+    if (!snapshot) { setEditing(false); return }
+    const arr = snapshot.order.map(id => snapshot.playlists[id]).filter(Boolean)
+    try { usePlaylists.getState().importPlaylistsWithValidation(arr as any) } catch {}
+    if (snapshot.currentId) try { usePlaylists.getState().setCurrent(snapshot.currentId as any) } catch {}
+    setEditing(false)
+    setSnapshot(null)
+  }
+  function saveEdit() { setEditing(false); setSnapshot(null) }
+
   useEffect(() => {
     ;(async () => {
       if (!isFsSupported()) return
@@ -52,7 +69,7 @@ export default function App() {
   }, [lib.tracks, lib.order, p.currentPlaylistId, p.playlists])
 
   useEffect(() => {
-    player.setQueue(rows.map(r => r.id))
+    player.setQueue(rows.map((r: any) => r.uid || r.id))
   }, [rows.length])
 
   useEffect(() => {
@@ -107,7 +124,21 @@ export default function App() {
     })()
   }, [audioState.duration, player.position, player.currentTrackId])
 
+  useEffect(() => {
+    const id = player.currentTrackId
+    const dur = audioState.duration
+    if (!id || !dur) return
+    const t = lib.tracks[id]
+    if (!t) return
+    const d = Math.floor(dur)
+    const old = Math.floor(t.duration || 0)
+    if (!old || Math.abs(old - d) >= 1) {
+      lib.upsertTracks([{ ...t, duration: d }])
+    }
+  }, [audioState.duration, player.currentTrackId])
+
   function onDragStart(e: React.DragEvent<HTMLTableRowElement>, index: number) {
+    if (!editing) return
     const ids = selectedIds.size ? Array.from(selectedIds) : [sorted[index].id]
     e.dataTransfer.setData('application/x-track-ids', JSON.stringify({ trackIds: ids, fromPlaylistId: p.currentPlaylistId || undefined }))
     e.dataTransfer.effectAllowed = 'move'
@@ -115,6 +146,7 @@ export default function App() {
   }
   function onDragOver(e: React.DragEvent<HTMLTableRowElement>, index: number) {
     e.preventDefault()
+    if (!editing) return
     const sel = new Set(selectedIds.size ? Array.from(selectedIds) : [])
     const allIds = sorted.map(x => x.id)
     const remain = allIds.filter(x => !sel.has(x))
@@ -126,7 +158,7 @@ export default function App() {
   }
   function onDrop(e: React.DragEvent<HTMLTableRowElement>, index: number) {
     e.preventDefault()
-    if (!p.currentPlaylistId) return
+    if (!editing || !p.currentPlaylistId) return
     const sel = new Set(selectedIds.size ? Array.from(selectedIds) : [])
     const allIds = sorted.map(x => x.id)
     const remain = allIds.filter(x => !sel.has(x))
@@ -249,16 +281,26 @@ export default function App() {
           <button className={tab==='settings' ? 'tab active' : 'tab'} onClick={() => setTab('settings')}>设置</button>
           <button className={tab==='player' ? 'tab active' : 'tab'} onClick={() => setTab('player')}>播放器</button>
         </div>
+        {tab==='playlist' && (
+          <div className="row" style={{ marginLeft: 'auto', gap: 8 }}>
+            {!editing && <button className="btn" onClick={beginEdit}>编辑</button>}
+            {editing && <>
+              <button className="btn" onClick={saveEdit}>保存</button>
+              <button className="btn" onClick={cancelEdit}>取消</button>
+            </>}
+          </div>
+        )}
       </div>
       <div className={tab==='playlist' ? 'layout layout-3 view' : 'layout layout-1 view'}>
         {tab==='playlist' && (
           <>
-            <PlaylistPanel />
+            <PlaylistPanel editing={editing} />
             <div className="panel">
               <div className="list">
                 <div className="row searchbar">
                   <input placeholder="搜索" style={{ flex: 1 }} value={query} onChange={e => setQuery(e.target.value)} />
                 </div>
+                {editing && (
                 <div className="row" style={{ gap: 8, padding: '6px 12px' }} onKeyDown={onKeyDown} tabIndex={0}>
                   <select value={sortKey} onChange={e => setSortKey(e.target.value as any)}>
                     <option value="title">歌曲</option>
@@ -291,10 +333,11 @@ export default function App() {
                   <button className="btn" onClick={moveSelectedTop} disabled={!selectedIds.size || !p.currentPlaylistId || p.currentPlaylistId==='__all__'}>置顶</button>
                   <button className="btn" onClick={moveSelectedBottom} disabled={!selectedIds.size || !p.currentPlaylistId || p.currentPlaylistId==='__all__'}>置底</button>
                 </div>
+                )}
                 <table>
                   <thead>
                   <tr>
-                    <th style={{ width: 28 }}>
+                    <th style={{ width: 28, display: editing ? '' : 'none' }}>
                       <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === sorted.length && sorted.length > 0} />
                     </th>
                     <th style={{ width: 32 }}>#</th>
@@ -313,20 +356,24 @@ export default function App() {
                       <div style={style} key={t.id}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <tbody>
-                          <tr className="drag" draggable={true}
+                          <tr className="drag" draggable={editing}
                               onDragStart={e => onDragStart(e, index)} onDragOver={e => onDragOver(e, index)} onDrop={e => onDrop(e, index)} onDragEnd={onDragEnd}
-                              onDoubleClick={() => onRowDoubleClick(t.id)} onClick={e => onRowClick(e, index, t.id)}
+                              onDoubleClick={() => onRowDoubleClick(t.id)} onClick={editing ? (e => onRowClick(e, index, t.id)) : undefined}
                               style={{ background: selectedIds.has(t.id) ? 'var(--bg-hover)' : undefined }}>
-                            <td style={{ width: 28, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ width: 28, padding: '8px 12px', borderBottom: '1px solid var(--border)', display: editing ? '' : 'none' }}>
                               <input type="checkbox" checked={selectedIds.has(t.id)} onChange={e => toggleCheckbox(e, index, t.id)} />
                             </td>
                             <td style={{ width: 32, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{index + 1}</td>
-                            <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.title}</td>
+                            <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{(t as any).title || (t as any).filename}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.artist}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.album}</td>
                             <td className="muted" style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{fmtDuration(t.duration)}</td>
                             <td style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
-                              <button className="btn" onClick={() => player.loadTrackWithoutPlay(t.id)}>编辑</button>
+                              {editing ? (
+                                <button className="btn" onDoubleClick={e => e.stopPropagation()} onClick={() => player.loadTrackWithoutPlay((t as any).uid || t.id)}>编辑</button>
+                              ) : (
+                                <button className="btn" onDoubleClick={e => e.stopPropagation()} onClick={() => player.loadTrack((t as any).uid || t.id)}>播放</button>
+                              )}
                             </td>
                           </tr>
                           </tbody>
@@ -337,7 +384,7 @@ export default function App() {
                 </VList>
               </div>
             </div>
-            <NowPlaying />
+            <NowPlaying editable={editing} />
           </>
         )}
         {tab==='settings' && (
@@ -345,7 +392,7 @@ export default function App() {
         )}
         {tab==='player' && (
           <div className="panel">
-            <NowPlaying />
+            <NowPlaying editable={false} />
           </div>
         )}
       </div>

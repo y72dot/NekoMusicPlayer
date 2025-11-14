@@ -6,6 +6,21 @@ export type AudioFormat = 'mp3' | 'wav' | 'flac' | 'aac' | 'ogg' | 'unknown'
 
 export type ID = string
 
+export interface StorageRef {
+  kind: 'indexeddb' | 'fs' | 'dropbox' | 'oss' | 'cos' | 'url' | 'custom'
+  locator: string
+  providerId?: ProviderId
+  primary?: boolean
+}
+
+export interface TrackCore {
+  uid: ID
+  filename: string
+  addedAt: number
+  sources: StorageRef[]
+  metaIndex?: { cover?: string; lyrics?: string }
+}
+
 export interface Track {
   id: ID
   title: string
@@ -60,4 +75,3 @@ export interface SourceProvider {
   listAudioFilesRecursively(root: string): Promise<string[]>
   readFile(path: string): Promise<Blob>
 }
-

@@ -56,28 +56,47 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
       const cached = await getBlob('audioBlobs', id)
       if (cached) await setSource(cached)
       else {
-        const provider = getProvider(track.sourceRef.providerId)
-        if (provider) {
-          const dl = await provider.readFile(track.sourceRef.pathOrKey)
-          await putBlob('audioBlobs', id, dl)
-          await setSource(dl)
-          writeDurationToLibrary(id)
-          try {
-            const name = track.sourceRef.pathOrKey.split('/').pop() || 'audio'
-            const parsed = await buildTrackFromBlob({ blob: dl, name, providerId: track.sourceRef.providerId, pathOrKey: track.sourceRef.pathOrKey, sourceType: track.sourceType })
-            const merged = { ...track }
-            for (const k of ['title','artist','album','albumArtist','trackNo','discNo','duration','year','genres','cover','format','bitrate','sampleRate','channels'] as const) {
-              const v = (parsed as any)[k]
-              if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) (merged as any)[k] = v
-            }
-            useLibrary.getState().upsertTracks([merged as any])
-          } catch {}
+        let dl: Blob | null = null
+        const sources: any[] = Array.isArray((track as any).sources) ? (track as any).sources : []
+        if (sources.length) {
+          const preferred = sources.find(s => s.primary) || sources[0]
+          if (preferred.kind === 'indexeddb') {
+            const b = await getBlob('audioBlobs', id)
+            if (b) dl = b
+          } else if (preferred.kind === 'fs') {
+            const localfs: any = (window as any).__localfs
+            if (localfs && preferred.locator) dl = await localfs.readFile(preferred.locator)
+          } else {
+            const provider = getProvider(preferred.providerId || (track as any).sourceRef?.providerId)
+            if (provider && preferred.locator) dl = await provider.readFile(preferred.locator)
+          }
         }
+        if (!dl && (track as any).sourceRef) {
+          const ref = (track as any).sourceRef
+          const provider = getProvider(ref.providerId)
+          if (provider) {
+            try { dl = await provider.readFile(ref.pathOrKey) } catch {}
+          }
+        }
+        if (!dl) return
+        await putBlob('audioBlobs', id, dl)
+        await setSource(dl)
+        writeDurationToLibrary(id)
+        try {
+          const name = ((track as any).filename) || ((track as any).sourceRef?.pathOrKey?.split('/').pop()) || 'audio'
+          const parsed = await buildTrackFromBlob({ blob: dl, name, providerId: (track as any).sourceRef?.providerId || (sources[0]?.providerId) || 'localfs', pathOrKey: (track as any).sourceRef?.pathOrKey || (sources[0]?.locator) || '', sourceType: (track as any).sourceType || 'localfs', skipCover: true })
+          const merged = { ...track }
+          for (const k of ['title','artist','album','albumArtist','trackNo','discNo','duration','year','genres','cover','format','bitrate','sampleRate','channels'] as const) {
+            const v = (parsed as any)[k]
+            if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) (merged as any)[k] = v
+          }
+          useLibrary.getState().upsertTracks([merged as any])
+        } catch {}
       }
     }
     set({ currentTrackId: id })
-    await play()
-    set({ isPlaying: true })
+    try { await play() } catch {}
+    set({ isPlaying: !audio.paused })
     try {
       const recent: ID[] = JSON.parse(localStorage.getItem('recent') || '[]')
       const next = [id, ...recent.filter(x => x !== id)].slice(0, 200)

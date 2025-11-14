@@ -3,7 +3,7 @@ import { usePlayer } from '../stores/player'
 import { useState, useMemo, useEffect } from 'react'
 import { enrichByMusicBrainz } from '../services/metadata/musicbrainz'
 
-export default function NowPlaying() {
+export default function NowPlaying({ editable = false }: { editable?: boolean }) {
   const lib = useLibrary()
   const player = usePlayer()
   const track = player.currentTrackId ? lib.tracks[player.currentTrackId] : undefined
@@ -44,20 +44,22 @@ export default function NowPlaying() {
       <div style={{ padding: 12 }} className="col">
         <label className="col">
           <span className="muted">歌名</span>
-          <input value={form?.title || ''} onChange={e => setForm({ ...form!, title: e.target.value })} />
+          <input value={form?.title || ''} onChange={e => setForm({ ...form!, title: e.target.value })} disabled={!editable} />
         </label>
         <label className="col">
           <span className="muted">艺术家</span>
-          <input value={form?.artist || ''} onChange={e => setForm({ ...form!, artist: e.target.value })} />
+          <input value={form?.artist || ''} onChange={e => setForm({ ...form!, artist: e.target.value })} disabled={!editable} />
         </label>
         <label className="col">
           <span className="muted">专辑</span>
-          <input value={form?.album || ''} onChange={e => setForm({ ...form!, album: e.target.value })} />
+          <input value={form?.album || ''} onChange={e => setForm({ ...form!, album: e.target.value })} disabled={!editable} />
         </label>
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn" onClick={autoFill}>自动补全</button>
-          <button className="btn" onClick={save}>保存元数据</button>
-        </div>
+        {editable && (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn" onClick={autoFill}>自动补全</button>
+            <button className="btn" onClick={save}>保存元数据</button>
+          </div>
+        )}
       </div>
       <div className="resizer resizer-left" onMouseDown={startResize} />
     </div>

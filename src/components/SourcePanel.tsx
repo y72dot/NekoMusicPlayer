@@ -40,17 +40,18 @@ export default function SourcePanel() {
       } catch {}
       const files = await local.listAudioFilesRecursively('/')
       const tracks = files.map(p => ({
+        uid: `${local.id}:${p}`,
         id: `${local.id}:${p}`,
-        title: p.split('/').pop() || 'audio',
-        artist: '',
-        album: '',
+        filename: p.split('/').pop() || 'audio',
+        addedAt: Date.now(),
+        sources: [{ kind: 'fs', locator: p, providerId: local.id, primary: true }],
         format: extToFormat(p),
         sourceType: 'localfs',
         sourceRef: { providerId: local.id, pathOrKey: p }
       })) as any
       library.upsertTracks(tracks)
       if (!player.currentTrackId && tracks.length) {
-        player.setQueue(tracks.map((t: any) => t.id))
+        player.setQueue(tracks.map((t: any) => t.uid))
       }
       await flushAll()
       ;(async () => {
