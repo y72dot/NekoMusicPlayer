@@ -216,12 +216,35 @@ export default function SourcePanel() {
             const blob = await local.readFile(p)
             const name = p.split('/').pop() || 'audio'
             const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: local.id, pathOrKey: p, sourceType: 'localfs' })
-            await putBlob('audioBlobs', track.id, blob)
-            return track
+            const uid = await computeUid(blob)
+            const t: any = { ...track, uid }
+            return { t, blob }
           } catch { return null }
         }))
         const valid = results.filter(Boolean) as any[]
-        if (valid.length) { library.upsertTracks(valid); scheduleFlush(); added += valid.length }
+        if (valid.length) {
+          const libState = useLibrary.getState()
+          const byUid = new Map<string, any>()
+          for (const id of Object.keys(libState.tracks)) {
+            const tt: any = libState.tracks[id]
+            if (tt.uid) byUid.set(tt.uid, tt)
+          }
+          const toInsert: any[] = []
+          for (const item of valid) {
+            const { t, blob } = item
+            const ex = t.uid ? byUid.get(t.uid) : undefined
+            if (ex) {
+              const src = { kind: 'fs', locator: t.sourceRef.pathOrKey, providerId: t.sourceRef.providerId, rootId: (t as any).sourceRef?.rootId, primary: false }
+              const srcs = Array.isArray(ex.sources) ? ex.sources : []
+              const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+              if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+            } else {
+              toInsert.push(t)
+              await putBlob('audioBlobs', t.id, blob)
+            }
+          }
+          if (toInsert.length) { library.upsertTracks(toInsert); scheduleFlush(); added += toInsert.length }
+        }
         await new Promise(r => setTimeout(r, 0))
       }
       setFileMsg(`已刷新，新增 ${added} 个文件`)
@@ -235,23 +258,43 @@ export default function SourcePanel() {
       registerProvider(dbx)
       const root = settings.dropbox.rootPath || ''
       const files = await dbx.listAudioFilesRecursively(root)
-      const items = await Promise.all(files.map(async p => ({
-        id: `${dbx.id}:${p}`,
-        path: p
-      })))
-      const tracks = items.map(it => ({
-        id: `${dbx.id}:${it.path}`,
-        title: it.path.split('/').pop() || 'audio',
-        artist: '',
-        album: '',
-        format: extToFormat(it.path),
-        sourceType: 'custom',
-        sourceRef: { providerId: dbx.id, pathOrKey: it.path }
-      })) as any
-      library.upsertTracks(tracks)
-      if (!player.currentTrackId && tracks.length) {
-        player.setQueue(tracks.map((t: any) => t.id))
+      const libState = useLibrary.getState()
+      const byUid = new Map<string, any>()
+      for (const id of Object.keys(libState.tracks)) {
+        const tt: any = libState.tracks[id]
+        if (tt.uid) byUid.set(tt.uid, tt)
       }
+      const batch = 5
+      const toInsert: any[] = []
+      for (let i = 0; i < files.length; i += batch) {
+        const slice = files.slice(i, i + batch)
+        const results = await Promise.all(slice.map(async p => {
+          try {
+            const blob = await dbx.readFile(p)
+            const name = p.split('/').pop() || 'audio'
+            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: dbx.id, pathOrKey: p, sourceType: 'custom' })
+            const uid = await computeUid(blob)
+            const t: any = { ...track, uid, sources: [{ kind: 'custom', locator: p, providerId: dbx.id, primary: true }] }
+            return { t }
+          } catch { return null }
+        }))
+        const valid = results.filter(Boolean) as any[]
+        for (const item of valid) {
+          const { t } = item
+          const ex = t.uid ? byUid.get(t.uid) : undefined
+          if (ex) {
+            const src = { kind: 'custom', locator: t.sourceRef.pathOrKey, providerId: t.sourceRef.providerId, primary: false }
+            const srcs = Array.isArray(ex.sources) ? ex.sources : []
+            const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+            if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+          } else {
+            toInsert.push(t)
+          }
+        }
+        await new Promise(r => setTimeout(r, 0))
+      }
+      if (toInsert.length) { library.upsertTracks(toInsert); scheduleFlush() }
+      if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
     } finally { setScanning(false) }
   }
 
@@ -276,25 +319,43 @@ export default function SourcePanel() {
       await oss.connect()
       registerProvider(oss)
       const files = await oss.listAudioFilesRecursively('/')
-      {
-        const libState = useLibrary.getState()
-        const toInsert: any[] = []
-        for (const p of files) {
-          const title = p.split('/').pop() || 'audio'
-          const base = title.replace(/\.[^.]+$/, '')
-          const ex = Object.values(libState.tracks).find((t: any) => (t.title || t.filename || '').toLowerCase() === base.toLowerCase())
+      const libState = useLibrary.getState()
+      const byUid = new Map<string, any>()
+      for (const id of Object.keys(libState.tracks)) {
+        const tt: any = libState.tracks[id]
+        if (tt.uid) byUid.set(tt.uid, tt)
+      }
+      const batch = 5
+      const toInsert: any[] = []
+      for (let i = 0; i < files.length; i += batch) {
+        const slice = files.slice(i, i + batch)
+        const results = await Promise.all(slice.map(async p => {
+          try {
+            const blob = await oss.readFile(p)
+            const name = p.split('/').pop() || 'audio'
+            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: oss.id, pathOrKey: p, sourceType: 'custom' })
+            const uid = await computeUid(blob)
+            const t: any = { ...track, uid, sources: [{ kind: 'custom', locator: p, providerId: oss.id, primary: true }] }
+            return { t }
+          } catch { return null }
+        }))
+        const valid = results.filter(Boolean) as any[]
+        for (const item of valid) {
+          const { t } = item
+          const ex = t.uid ? byUid.get(t.uid) : undefined
           if (ex) {
-            const src = { kind: 'custom', locator: p, providerId: oss.id, primary: false }
+            const src = { kind: 'custom', locator: t.sourceRef.pathOrKey, providerId: t.sourceRef.providerId, primary: false }
             const srcs = Array.isArray(ex.sources) ? ex.sources : []
             const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
             if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
           } else {
-            toInsert.push({ id: `${oss.id}:${p}`, title: base, artist: '', album: '', format: extToFormat(p), sourceType: 'custom', sourceRef: { providerId: oss.id, pathOrKey: p } })
+            toInsert.push(t)
           }
         }
-        if (toInsert.length) library.upsertTracks(toInsert)
-        if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
+        await new Promise(r => setTimeout(r, 0))
       }
+      if (toInsert.length) { library.upsertTracks(toInsert); scheduleFlush() }
+      if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
     } finally { setScanning(false) }
   }
 
@@ -318,25 +379,43 @@ export default function SourcePanel() {
       await cos.connect()
       registerProvider(cos)
       const files = await cos.listAudioFilesRecursively('/')
-      {
-        const libState = useLibrary.getState()
-        const toInsert: any[] = []
-        for (const p of files) {
-          const title = p.split('/').pop() || 'audio'
-          const base = title.replace(/\.[^.]+$/, '')
-          const ex = Object.values(libState.tracks).find((t: any) => (t.title || t.filename || '').toLowerCase() === base.toLowerCase())
+      const libState = useLibrary.getState()
+      const byUid = new Map<string, any>()
+      for (const id of Object.keys(libState.tracks)) {
+        const tt: any = libState.tracks[id]
+        if (tt.uid) byUid.set(tt.uid, tt)
+      }
+      const batch = 5
+      const toInsert: any[] = []
+      for (let i = 0; i < files.length; i += batch) {
+        const slice = files.slice(i, i + batch)
+        const results = await Promise.all(slice.map(async p => {
+          try {
+            const blob = await cos.readFile(p)
+            const name = p.split('/').pop() || 'audio'
+            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: cos.id, pathOrKey: p, sourceType: 'custom' })
+            const uid = await computeUid(blob)
+            const t: any = { ...track, uid, sources: [{ kind: 'custom', locator: p, providerId: cos.id, primary: true }] }
+            return { t }
+          } catch { return null }
+        }))
+        const valid = results.filter(Boolean) as any[]
+        for (const item of valid) {
+          const { t } = item
+          const ex = t.uid ? byUid.get(t.uid) : undefined
           if (ex) {
-            const src = { kind: 'custom', locator: p, providerId: cos.id, primary: false }
+            const src = { kind: 'custom', locator: t.sourceRef.pathOrKey, providerId: t.sourceRef.providerId, primary: false }
             const srcs = Array.isArray(ex.sources) ? ex.sources : []
             const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
             if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
           } else {
-            toInsert.push({ id: `${cos.id}:${p}`, title: base, artist: '', album: '', format: extToFormat(p), sourceType: 'custom', sourceRef: { providerId: cos.id, pathOrKey: p } })
+            toInsert.push(t)
           }
         }
-        if (toInsert.length) library.upsertTracks(toInsert)
-        if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
+        await new Promise(r => setTimeout(r, 0))
       }
+      if (toInsert.length) { library.upsertTracks(toInsert); scheduleFlush() }
+      if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
     } finally { setScanning(false) }
   }
 
@@ -402,25 +481,48 @@ export default function SourcePanel() {
                       const fp = createFileInputProvider(files)
                       registerProvider(fp)
                       const paths = await fp.listAudioFilesRecursively('/')
-                      const tracks = paths.map(p => ({
-                        uid: `${fp.id}:${p}`,
-                        id: `${fp.id}:${p}`,
-                        filename: p.split('/').pop() || 'audio',
-                        addedAt: Date.now(),
-                        sources: [{ kind: 'indexeddb', locator: `${fp.id}:${p}`, providerId: fp.id, primary: true }],
-                        format: extToFormat(p),
-                        sourceType: 'custom',
-                        sourceRef: { providerId: fp.id, pathOrKey: p }
-                      })) as any
-                      useLibrary.getState().upsertTracks(tracks)
-                      for (const p of paths) {
-                        const id = `${fp.id}:${p}`
-                        const f = await fp.readFile(p)
-                        await putBlob('audioBlobs', id, f)
+                      const libState = useLibrary.getState()
+                      const byUid = new Map<string, any>()
+                      for (const id of Object.keys(libState.tracks)) {
+                        const tt: any = libState.tracks[id]
+                        if (tt.uid) byUid.set(tt.uid, tt)
                       }
-                      if (!player.currentTrackId && tracks.length) player.setQueue(tracks.map((t: any) => t.uid))
+                      const batch = 5
+                      const toInsert: any[] = []
+                      let count = 0
+                      for (let i = 0; i < paths.length; i += batch) {
+                        const slice = paths.slice(i, i + batch)
+                        const results = await Promise.all(slice.map(async p => {
+                          try {
+                            const blob = await fp.readFile(p)
+                            const name = p.split('/').pop() || 'audio'
+                            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: fp.id, pathOrKey: p, sourceType: 'custom' })
+                            const uid = await computeUid(blob)
+                            const t: any = { ...track, uid, addedAt: Date.now(), sources: [{ kind: 'indexeddb', locator: `${fp.id}:${p}`, providerId: fp.id, primary: true }] }
+                            return { t, blob }
+                          } catch { return null }
+                        }))
+                        const valid = results.filter(Boolean) as any[]
+                        for (const item of valid) {
+                          const { t, blob } = item
+                          const ex = t.uid ? byUid.get(t.uid) : undefined
+                          if (ex) {
+                            const src = { kind: 'indexeddb', locator: `${fp.id}:${t.sourceRef.pathOrKey}`, providerId: fp.id, primary: false }
+                            const srcs = Array.isArray(ex.sources) ? ex.sources : []
+                            const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+                            if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+                          } else {
+                            toInsert.push(t)
+                            await putBlob('audioBlobs', t.id, blob)
+                            count++
+                          }
+                        }
+                        await new Promise(r => setTimeout(r, 0))
+                      }
+                      if (toInsert.length) useLibrary.getState().upsertTracks(toInsert)
+                      if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
                       await flushAll()
-                      setFileMsg(`已导入 ${paths.length} 个文件`)
+                      setFileMsg(`已导入 ${count} 个文件`)
                     }
                     input.click()
                   } finally { setScanning(false) }
@@ -438,25 +540,48 @@ export default function SourcePanel() {
                       const fp = createFileInputProvider(files)
                       registerProvider(fp)
                       const paths = await fp.listAudioFilesRecursively('/')
-                      const tracks = paths.map(p => ({
-                        uid: `${fp.id}:${p}`,
-                        id: `${fp.id}:${p}`,
-                        filename: p.split('/').pop() || 'audio',
-                        addedAt: Date.now(),
-                        sources: [{ kind: 'indexeddb', locator: `${fp.id}:${p}`, providerId: fp.id, primary: true }],
-                        format: extToFormat(p),
-                        sourceType: 'custom',
-                        sourceRef: { providerId: fp.id, pathOrKey: p }
-                      })) as any
-                      useLibrary.getState().upsertTracks(tracks)
-                      for (const p of paths) {
-                        const id = `${fp.id}:${p}`
-                        const f = await fp.readFile(p)
-                        await putBlob('audioBlobs', id, f)
+                      const libState = useLibrary.getState()
+                      const byUid = new Map<string, any>()
+                      for (const id of Object.keys(libState.tracks)) {
+                        const tt: any = libState.tracks[id]
+                        if (tt.uid) byUid.set(tt.uid, tt)
                       }
-                      if (!player.currentTrackId && tracks.length) player.setQueue(tracks.map((t: any) => t.uid))
+                      const batch = 5
+                      const toInsert: any[] = []
+                      let count = 0
+                      for (let i = 0; i < paths.length; i += batch) {
+                        const slice = paths.slice(i, i + batch)
+                        const results = await Promise.all(slice.map(async p => {
+                          try {
+                            const blob = await fp.readFile(p)
+                            const name = p.split('/').pop() || 'audio'
+                            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: fp.id, pathOrKey: p, sourceType: 'custom' })
+                            const uid = await computeUid(blob)
+                            const t: any = { ...track, uid, addedAt: Date.now(), sources: [{ kind: 'indexeddb', locator: `${fp.id}:${p}`, providerId: fp.id, primary: true }] }
+                            return { t, blob }
+                          } catch { return null }
+                        }))
+                        const valid = results.filter(Boolean) as any[]
+                        for (const item of valid) {
+                          const { t, blob } = item
+                          const ex = t.uid ? byUid.get(t.uid) : undefined
+                          if (ex) {
+                            const src = { kind: 'indexeddb', locator: `${fp.id}:${t.sourceRef.pathOrKey}`, providerId: fp.id, primary: false }
+                            const srcs = Array.isArray(ex.sources) ? ex.sources : []
+                            const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+                            if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+                          } else {
+                            toInsert.push(t)
+                            await putBlob('audioBlobs', t.id, blob)
+                            count++
+                          }
+                        }
+                        await new Promise(r => setTimeout(r, 0))
+                      }
+                      if (toInsert.length) useLibrary.getState().upsertTracks(toInsert)
+                      if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
                       await flushAll()
-                      setFileMsg(`已导入 ${paths.length} 个文件`)
+                      setFileMsg(`已导入 ${count} 个文件`)
                     }
                     input.click()
                   } finally { setScanning(false) }
@@ -492,11 +617,33 @@ export default function SourcePanel() {
                             const blob = await provider.readFile(p)
                             const name = p.split('/').pop() || 'audio'
                             const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: provider.id, pathOrKey: p, sourceType: 'localfs' })
-                            return { ...track, sourceRef: { ...track.sourceRef, rootId: rid } }
+                            const uid = await computeUid(blob)
+                            const t: any = { ...track, uid, sourceRef: { ...track.sourceRef, rootId: rid } }
+                            return t
                           } catch { return null }
                         }))
                         const valid = results.filter(Boolean) as any[]
-                        if (valid.length) { library.upsertTracks(valid); scheduleFlush() }
+                        if (valid.length) {
+                          const libState = useLibrary.getState()
+                          const byUid = new Map<string, any>()
+                          for (const id of Object.keys(libState.tracks)) {
+                            const tt: any = libState.tracks[id]
+                            if (tt.uid) byUid.set(tt.uid, tt)
+                          }
+                          const toInsert: any[] = []
+                          for (const t of valid) {
+                            const ex = t.uid ? byUid.get(t.uid) : undefined
+                            if (ex) {
+                              const src = { kind: 'fs', locator: t.sourceRef.pathOrKey, providerId: t.sourceRef.providerId, rootId: t.sourceRef.rootId, primary: false }
+                              const srcs = Array.isArray(ex.sources) ? ex.sources : []
+                              const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+                              if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+                            } else {
+                              toInsert.push(t)
+                            }
+                          }
+                          if (toInsert.length) { library.upsertTracks(toInsert); scheduleFlush() }
+                        }
                         await new Promise(r => setTimeout(r, 0))
                       }
                     } finally { setScanning(false) }
