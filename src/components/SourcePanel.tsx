@@ -10,6 +10,7 @@ import { putBlob, getBlob } from '../services/cache/indexeddb'
 import { useSettings } from '../stores/settings'
 import { registerProvider } from '../providers/registry'
 import { extToFormat } from '../services/metadata/metadata'
+import { computeUid } from '../utils/uid'
 import { setRootHandle, ensureNmpData, flushAll, scheduleFlush, isFsSupported, readJson, loadRootHandleFromIDB } from '../services/storage/fs'
 import { usePlaylists } from '../stores/playlists'
 
@@ -85,13 +86,33 @@ export default function SourcePanel() {
             const blob = await local.readFile(p)
             const name = p.split('/').pop() || 'audio'
             const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: local.id, pathOrKey: p, sourceType: 'localfs' })
-            return track
+            const uid = await computeUid(blob)
+            const t: any = { ...track, uid, sources: [{ kind: 'fs', locator: p, providerId: local.id, primary: true }], filename: name, addedAt: Date.now() }
+            return t
           } catch { return null }
         }))
         const valid = results.filter(Boolean) as any[]
-        if (valid.length) {
-          library.upsertTracks(valid)
-          queueIds.push(...valid.map(t => t.id))
+        const libState = useLibrary.getState()
+        const byUid = new Map<string, any>()
+        for (const id of Object.keys(libState.tracks)) {
+          const tt: any = libState.tracks[id]
+          if (tt.uid) byUid.set(tt.uid, tt)
+        }
+        const toInsert: any[] = []
+        for (const t of valid) {
+          const ex = t.uid ? byUid.get(t.uid) : undefined
+          if (ex) {
+            const src = { kind: 'fs', locator: t.sourceRef.pathOrKey, providerId: t.sourceRef.providerId, primary: false }
+            const srcs = Array.isArray(ex.sources) ? ex.sources : []
+            const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+            if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+          } else {
+            toInsert.push(t)
+          }
+        }
+        if (toInsert.length) {
+          library.upsertTracks(toInsert)
+          queueIds.push(...toInsert.map(t => t.id))
           scheduleFlush()
         }
         await new Promise(r => setTimeout(r, 0))
@@ -182,17 +203,25 @@ export default function SourcePanel() {
       await oss.connect()
       registerProvider(oss)
       const files = await oss.listAudioFilesRecursively('/')
-      const tracks = files.map(p => ({
-        id: `${oss.id}:${p}`,
-        title: p.split('/').pop() || 'audio',
-        artist: '',
-        album: '',
-        format: extToFormat(p),
-        sourceType: 'custom',
-        sourceRef: { providerId: oss.id, pathOrKey: p }
-      })) as any
-      library.upsertTracks(tracks)
-      if (!player.currentTrackId && tracks.length) player.setQueue(tracks.map((t: any) => t.id))
+      {
+        const libState = useLibrary.getState()
+        const toInsert: any[] = []
+        for (const p of files) {
+          const title = p.split('/').pop() || 'audio'
+          const base = title.replace(/\.[^.]+$/, '')
+          const ex = Object.values(libState.tracks).find((t: any) => (t.title || t.filename || '').toLowerCase() === base.toLowerCase())
+          if (ex) {
+            const src = { kind: 'custom', locator: p, providerId: oss.id, primary: false }
+            const srcs = Array.isArray(ex.sources) ? ex.sources : []
+            const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+            if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+          } else {
+            toInsert.push({ id: `${oss.id}:${p}`, title: base, artist: '', album: '', format: extToFormat(p), sourceType: 'custom', sourceRef: { providerId: oss.id, pathOrKey: p } })
+          }
+        }
+        if (toInsert.length) library.upsertTracks(toInsert)
+        if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
+      }
     } finally { setScanning(false) }
   }
 
@@ -216,17 +245,25 @@ export default function SourcePanel() {
       await cos.connect()
       registerProvider(cos)
       const files = await cos.listAudioFilesRecursively('/')
-      const tracks = files.map(p => ({
-        id: `${cos.id}:${p}`,
-        title: p.split('/').pop() || 'audio',
-        artist: '',
-        album: '',
-        format: extToFormat(p),
-        sourceType: 'custom',
-        sourceRef: { providerId: cos.id, pathOrKey: p }
-      })) as any
-      library.upsertTracks(tracks)
-      if (!player.currentTrackId && tracks.length) player.setQueue(tracks.map((t: any) => t.id))
+      {
+        const libState = useLibrary.getState()
+        const toInsert: any[] = []
+        for (const p of files) {
+          const title = p.split('/').pop() || 'audio'
+          const base = title.replace(/\.[^.]+$/, '')
+          const ex = Object.values(libState.tracks).find((t: any) => (t.title || t.filename || '').toLowerCase() === base.toLowerCase())
+          if (ex) {
+            const src = { kind: 'custom', locator: p, providerId: cos.id, primary: false }
+            const srcs = Array.isArray(ex.sources) ? ex.sources : []
+            const has = srcs.some((s: any) => s.providerId === src.providerId && s.locator === src.locator)
+            if (!has) libState.upsertTracks([{ ...ex, sources: [...srcs, src] }])
+          } else {
+            toInsert.push({ id: `${cos.id}:${p}`, title: base, artist: '', album: '', format: extToFormat(p), sourceType: 'custom', sourceRef: { providerId: cos.id, pathOrKey: p } })
+          }
+        }
+        if (toInsert.length) library.upsertTracks(toInsert)
+        if (!player.currentTrackId && toInsert.length) player.setQueue(toInsert.map((t: any) => t.id))
+      }
     } finally { setScanning(false) }
   }
 

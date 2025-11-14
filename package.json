@@ -18,7 +18,8 @@
     "react-window": "^1.8.10",
     "ali-oss": "^6.20.0",
     "cos-js-sdk-v5": "^1.8.6",
-    "zustand": "^4.5.2"
+    "zustand": "^4.5.2",
+    "buffer": "^6.0.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",

@@ -12,6 +12,9 @@ export default defineConfig({
       { find: /^@\/(.*)$/, replacement: `${srcDir}/$1` }
     ]
   },
+  optimizeDeps: {
+    include: ['buffer']
+  },
   server: {
     port: 5173
   }

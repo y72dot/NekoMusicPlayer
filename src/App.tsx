@@ -342,7 +342,7 @@ export default function App() {
           <>
             <PlaylistPanel editing={editing} />
             <div className="panel">
-              <div className="list">
+              <div className="list" style={{ ['--col-check' as any]: editing ? '28px' : '0px' }}>
                 <div className="row searchbar">
                   <input placeholder="搜索" style={{ flex: 1 }} value={query} onChange={e => setQuery(e.target.value)} />
                 </div>
@@ -381,16 +381,24 @@ export default function App() {
                 </div>
                 )}
                 <table>
+                  <colgroup>
+                    <col style={{ width: 'var(--col-check)' }} />
+                    <col style={{ width: 40 }} />
+                    <col />
+                    <col style={{ width: '24%' }} />
+                    <col style={{ width: '24%' }} />
+                    <col style={{ width: 80 }} />
+                  </colgroup>
                   <thead>
                   <tr>
-                    <th style={{ width: 28, display: editing ? '' : 'none' }}>
-                      <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === sorted.length && sorted.length > 0} />
+                    <th>
+                      {editing && (<input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === sorted.length && sorted.length > 0} />)}
                     </th>
-                    <th style={{ width: 32 }}>#</th>
+                    <th>#</th>
                     <th>歌曲</th>
                     <th>艺术家</th>
                     <th>专辑</th>
-                    <th style={{ width: 80 }}>时长</th>
+                    <th>时长</th>
                   </tr>
                   </thead>
                 </table>
@@ -400,19 +408,27 @@ export default function App() {
                     return (
                       <div style={style} key={t.id}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <colgroup>
+                            <col style={{ width: 'var(--col-check)' }} />
+                            <col style={{ width: 40 }} />
+                            <col />
+                            <col style={{ width: '24%' }} />
+                            <col style={{ width: '24%' }} />
+                            <col style={{ width: 80 }} />
+                          </colgroup>
                           <tbody>
                           <tr className="drag" draggable={editing}
                               onDragStart={e => onDragStart(e, index)} onDragOver={e => onDragOver(e, index)} onDrop={e => onDrop(e, index)} onDragEnd={onDragEnd}
                               onDoubleClick={() => onRowDoubleClick(t.id)} onClick={editing ? (e => onRowClick(e, index, t.id)) : undefined}
                               style={{ background: selectedIds.has(t.id) ? 'var(--bg-hover)' : undefined }}>
-                            <td style={{ width: 28, padding: '8px 12px', borderBottom: '1px solid var(--border)', display: editing ? '' : 'none' }}>
-                              <input type="checkbox" checked={selectedIds.has(t.id)} onChange={e => toggleCheckbox(e, index, t.id)} />
+                            <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                              {editing && (<input type="checkbox" checked={selectedIds.has(t.id)} onChange={e => toggleCheckbox(e, index, t.id)} />)}
                             </td>
-                            <td style={{ width: 32, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{index + 1}</td>
+                            <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{index + 1}</td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{(t as any).title || (t as any).filename}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.artist}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.album}</td>
-                            <td className="muted" style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{fmtDuration(t.duration)}</td>
+                            <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{fmtDuration(t.duration)}</td>
                           </tr>
                           </tbody>
                         </table>

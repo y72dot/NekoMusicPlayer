@@ -42,11 +42,12 @@ export async function buildTrackFromBlob(params: {
   let bitrate: number | undefined
   let sampleRate: number | undefined
   let channels: number | undefined
+  let genres: string[] | undefined
 
   try {
     const meta = await parseBlob(blob)
     title = meta.common.title || title
-    artist = meta.common.artist || ''
+    artist = meta.common.artist || (Array.isArray((meta.common as any).artists) ? ((meta.common as any).artists as string[]).join(', ') : '') || meta.common.albumartist || (meta.common as any).composer || ''
     album = meta.common.album || ''
     duration = meta.format.duration
     albumArtist = meta.common.albumartist || undefined
@@ -60,8 +61,14 @@ export async function buildTrackFromBlob(params: {
       const pic = meta.common.picture?.[0]
       cover = toDataUrl(pic)
     }
+    const g = (meta.common as any).genre
+    const genresArr = Array.isArray(g) ? g : (g ? [g] : [])
+    const genresNorm = (genresArr || []).filter(Boolean)
+    genres = genresNorm.length ? genresNorm : undefined
     devlog('metadata', 'parsed', { title, artist, album, duration: duration || 0, cover: !!cover })
-  } catch {}
+  } catch (e) {
+    devwarn('metadata', 'parse failed', { name, size: blob.size, err: String(e) })
+  }
 
   const format = extToFormat(name)
   devlog('metadata', 'format', { name, format })
@@ -75,7 +82,7 @@ export async function buildTrackFromBlob(params: {
     discNo,
     duration,
     year,
-    genres: [],
+    genres: genres || [],
     cover,
     format,
     bitrate,

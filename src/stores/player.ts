@@ -57,6 +57,13 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
       await setSource(blob)
       devlog('player', 'setSource', { id, from: 'blob' })
       writeDurationToLibrary(id)
+      try {
+        const t = useLibrary.getState().tracks[id]
+        if (!(t as any).uid) {
+          const uid = await (await import('../utils/uid')).computeUid(blob)
+          useLibrary.getState().upsertTracks([{ ...t, uid } as any])
+        }
+      } catch {}
     } else {
       const cached = await getBlob('audioBlobs', id)
       if (cached) {
@@ -73,6 +80,11 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
               if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) (merged as any)[k] = v
             }
             useLibrary.getState().upsertTracks([merged as any])
+          }
+          const t2 = useLibrary.getState().tracks[id]
+          if (!(t2 as any).uid) {
+            const uid = await (await import('../utils/uid')).computeUid(cached)
+            useLibrary.getState().upsertTracks([{ ...t2, uid } as any])
           }
         } catch {}
       }
@@ -122,6 +134,11 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
             if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) (merged as any)[k] = v
           }
           useLibrary.getState().upsertTracks([merged as any])
+          const t3 = useLibrary.getState().tracks[id]
+          if (!(t3 as any).uid) {
+            const uid = await (await import('../utils/uid')).computeUid(dl)
+            useLibrary.getState().upsertTracks([{ ...t3, uid } as any])
+          }
         } catch {}
       }
     }

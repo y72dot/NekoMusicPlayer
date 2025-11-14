@@ -64,7 +64,8 @@ async function writeTextFile(dir: FileSystemDirectoryHandle, name: string, text:
 export async function writeJson(path: string, obj: any) {
   const dir = await getNmpDir()
   if (!dir) return
-  await writeTextFile(dir, path, JSON.stringify(obj))
+  const text = JSON.stringify(obj, null, 2) + "\n"
+  await writeTextFile(dir, path, text)
 }
 
 export async function readJson<T = any>(path: string): Promise<T | null> {
@@ -138,9 +139,15 @@ export async function flushAll() {
       if (t.title) meta.title = t.title
       if (t.artist) meta.artist = t.artist
       if (t.album) meta.album = t.album
+      if (t.albumArtist) meta.albumArtist = t.albumArtist
+      if (t.genres && t.genres.length) meta.genres = t.genres
       if (t.duration && t.duration > 0) meta.duration = t.duration
       if (t.trackNo) meta.trackNo = t.trackNo
+      if (t.discNo) meta.discNo = t.discNo
       if (t.year) meta.year = t.year
+      if (t.format) meta.format = t.format
+      if (t.sampleRate) meta.sampleRate = t.sampleRate
+      if (t.channels) meta.channels = t.channels
       libTracks[core.uid] = { ...core, meta }
     }
     const playlistsV2: any = {}
