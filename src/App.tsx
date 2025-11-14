@@ -91,7 +91,11 @@ export default function App() {
 
   async function onRowDoubleClick(id: string) {
     const blob = await getBlob('audioBlobs', id)
-    await player.loadTrack(id, blob || undefined)
+    if (editing) {
+      await player.loadTrackWithoutPlay(id, blob || undefined)
+    } else {
+      await player.loadTrack(id, blob || undefined)
+    }
   }
 
   useEffect(() => {
@@ -345,7 +349,6 @@ export default function App() {
                     <th>艺术家</th>
                     <th>专辑</th>
                     <th style={{ width: 80 }}>时长</th>
-                    <th style={{ width: 80 }}>操作</th>
                   </tr>
                   </thead>
                 </table>
@@ -368,13 +371,6 @@ export default function App() {
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.artist}</td>
                             <td className="muted" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{t.album}</td>
                             <td className="muted" style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{fmtDuration(t.duration)}</td>
-                            <td style={{ width: 80, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
-                              {editing ? (
-                                <button className="btn" onDoubleClick={e => e.stopPropagation()} onClick={() => player.loadTrackWithoutPlay((t as any).uid || t.id)}>编辑</button>
-                              ) : (
-                                <button className="btn" onDoubleClick={e => e.stopPropagation()} onClick={() => player.loadTrack((t as any).uid || t.id)}>播放</button>
-                              )}
-                            </td>
                           </tr>
                           </tbody>
                         </table>
@@ -396,7 +392,7 @@ export default function App() {
           </div>
         )}
       </div>
-      <PlayerBar />
+      <PlayerBar playingEnabled={!editing} />
     </div>
   )
 }
