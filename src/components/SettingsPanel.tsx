@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import SourcePanel from './SourcePanel'
 import { useSettings } from '../stores/settings'
 //
 
@@ -86,10 +85,7 @@ export default function SettingsPanel() {
           <button className="btn" onClick={importBackup}>导入备份</button>
           <button className="btn" onClick={() => setShowResetConfirm(true)} style={{ marginLeft: 8 }}>重置站点</button>
         </div>
-        <div className="col" style={{ gap: 8 }}>
-          <span className="muted">账户与存储源设置</span>
-          <SourcePanel />
-        </div>
+        
       </div>
       {showResetConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
