@@ -10,6 +10,7 @@ export interface StorageRef {
   kind: 'indexeddb' | 'fs' | 'dropbox' | 'oss' | 'cos' | 'url' | 'custom'
   locator: string
   providerId?: ProviderId
+  rootId?: string
   primary?: boolean
 }
 
@@ -40,6 +41,7 @@ export interface Track {
   sourceType: SourceType
   sourceRef: {
     providerId: ProviderId
+    rootId?: string
     pathOrKey: string
     url?: string
   }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FixedSizeList as VList } from 'react-window'
 import PlaylistPanel from './components/PlaylistPanel'
+import SourcePanel from './components/SourcePanel'
+import LibraryView from './components/LibraryView'
 import NowPlaying from './components/NowPlaying'
 import PlayerBar from './components/PlayerBar'
 import SettingsPanel from './components/SettingsPanel'
@@ -18,7 +20,7 @@ export default function App() {
   const p = usePlaylists()
   const player = usePlayer()
   const audioState = useAudioState()
-  const [tab, setTab] = useState<'playlist'|'settings'|'player'>('playlist')
+  const [tab, setTab] = useState<'playlist'|'library'|'settings'|'player'>('playlist')
   const [editing, setEditing] = useState(false)
   const [snapshot, setSnapshot] = useState<{ playlists: Record<string, any>; order: string[]; currentId?: string } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -73,12 +75,13 @@ export default function App() {
             const src = (core.sources || [])[0] || {}
             const providerId = src.providerId || 'localfs'
             const pathOrKey = src.locator || core.filename || uid
+            const rootId = src.rootId
             const title = m.title || core.filename || 'audio'
             const artist = m.artist || ''
             const album = m.album || ''
             const format = extToFormat(core.filename || pathOrKey)
             const t: any = {
-              id: uid,
+              id: `${providerId}:${pathOrKey}`,
               uid,
               filename: core.filename,
               addedAt: core.addedAt,
@@ -89,7 +92,7 @@ export default function App() {
               duration: m.duration,
               format,
               sourceType: src.kind === 'fs' ? 'localfs' : 'custom',
-              sourceRef: { providerId, pathOrKey }
+              sourceRef: { providerId, pathOrKey, rootId }
             }
             items.push(t)
           }
@@ -112,8 +115,10 @@ export default function App() {
   }, [lib.tracks, lib.order, p.currentPlaylistId, p.playlists])
 
   useEffect(() => {
-    player.setQueue(rows.map((r: any) => r.uid || r.id))
-  }, [rows.length])
+    if (tab==='playlist') {
+      player.setQueue(rows.map((r: any) => r.uid || r.id))
+    }
+  }, [rows.length, tab])
 
   useEffect(() => {
     const unsub1 = useLibrary.subscribe(s => s.tracks, () => scheduleFlush())
@@ -163,9 +168,9 @@ export default function App() {
       if (exists) return
       const next = lib.tracks[nextId]
       if (!next) return
-      const localfs: any = (window as any).__localfs
-      if (next.sourceType === 'localfs' && localfs) {
-        try { await localfs.readFile(next.sourceRef.pathOrKey) } catch {}
+      if (next.sourceType === 'localfs') {
+        const provider = getProvider(next.sourceRef.providerId)
+        if (provider) { try { await provider.readFile(next.sourceRef.pathOrKey) } catch {} }
       }
     })()
   }, [audioState.duration, player.position, player.currentTrackId])
@@ -237,7 +242,20 @@ export default function App() {
 
   const displayed = useMemo(() => {
     if (dragActive && dragPreviewOrder) return dragPreviewOrder.map(id => lib.tracks[id]).filter(Boolean)
-    return sorted
+    const norm = (t: any) => {
+      const name = (t.title || t.filename || '').trim()
+      const base = name.replace(/\.[^.]+$/, '')
+      return base.toLowerCase()
+    }
+    const seen = new Set<string>()
+    const res: any[] = []
+    for (const t of sorted) {
+      const key = (t as any).uid || norm(t)
+      if (seen.has(String(key))) continue
+      seen.add(String(key))
+      res.push(t)
+    }
+    return res
   }, [dragActive, dragPreviewOrder, sorted, lib.tracks])
 
   function onRowClick(e: React.MouseEvent<HTMLTableRowElement>, index: number, id: string) {
@@ -324,6 +342,7 @@ export default function App() {
       <div className="topbar">
         <div className="tabs">
           <button className={tab==='playlist' ? 'tab active' : 'tab'} onClick={() => setTab('playlist')}>歌单管理</button>
+          <button className={tab==='library' ? 'tab active' : 'tab'} onClick={() => setTab('library')}>曲库</button>
           <button className={tab==='settings' ? 'tab active' : 'tab'} onClick={() => setTab('settings')}>设置</button>
           <button className={tab==='player' ? 'tab active' : 'tab'} onClick={() => setTab('player')}>播放器</button>
         </div>
@@ -337,7 +356,7 @@ export default function App() {
           </div>
         )}
       </div>
-      <div className={tab==='playlist' ? 'layout layout-3 view' : 'layout layout-1 view'}>
+      <div className={(tab==='playlist' || tab==='library') ? 'layout layout-3 view' : 'layout layout-1 view'}>
         {tab==='playlist' && (
           <>
             <PlaylistPanel editing={editing} />
@@ -439,6 +458,13 @@ export default function App() {
               </div>
             </div>
             <NowPlaying editable={editing} />
+          </>
+        )}
+        {tab==='library' && (
+          <>
+            <SourcePanel />
+            <LibraryView />
+            <NowPlaying editable={false} />
           </>
         )}
         {tab==='settings' && (

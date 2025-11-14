@@ -25,6 +25,56 @@ export async function loadRootHandleFromIDB() {
   return rootHandle
 }
 
+export async function getRootHandlesMap(): Promise<Record<string, FileSystemDirectoryHandle>> {
+  const m = await getJSON<Record<string, FileSystemDirectoryHandle>>('fs.rootHandles')
+  return m || {}
+}
+
+export async function setRootHandlesMap(next: Record<string, FileSystemDirectoryHandle>) {
+  await putJSON('fs.rootHandles', next)
+}
+
+export async function setSnapshotTarget(rootId: string) {
+  const map = await getRootHandlesMap()
+  const h = map[rootId]
+  if (!h) return false
+  await putJSON('fs.snapshotTarget', rootId as any)
+  rootHandle = h
+  nmpDirHandle = null
+  await ensureNmpData()
+  return true
+}
+
+export async function getRootNamesMap(): Promise<Record<string, string>> {
+  const m = await getJSON<Record<string, string>>('fs.rootNames')
+  return m || {}
+}
+
+export async function setRootNamesMap(next: Record<string, string>) {
+  await putJSON('fs.rootNames', next)
+}
+
+async function resolveSnapshotRootHandle(): Promise<FileSystemDirectoryHandle | null> {
+  const targetId = await getJSON<string>('fs.snapshotTarget')
+  const map = await getRootHandlesMap()
+  const ids = Object.keys(map)
+  let h: FileSystemDirectoryHandle | null = null
+  if (targetId && map[targetId]) {
+    h = map[targetId]
+  } else if (ids.length) {
+    const firstId = ids[0]
+    h = map[firstId]
+    await putJSON('fs.snapshotTarget', firstId as any)
+  }
+  if (h) {
+    rootHandle = h
+    nmpDirHandle = null
+    await ensureNmpData()
+    return h
+  }
+  return null
+}
+
 async function ensureDir(name: string) {
   if (!rootHandle) return null
   const dir = await rootHandle.getDirectoryHandle(name, { create: true })
@@ -118,7 +168,10 @@ export async function writeAudioCache(id: string, blob: Blob) {
 
 export async function flushAll() {
   if (!isFsSupported()) return
-  if (!rootHandle) return
+  if (!rootHandle) {
+    const ok = await resolveSnapshotRootHandle()
+    if (!ok) return
+  }
   if (flushing) { scheduled = true; return }
   flushing = true
   try {
@@ -132,7 +185,7 @@ export async function flushAll() {
         uid: t.uid || t.id,
         filename: t.filename || (t.sourceRef ? (t.sourceRef.pathOrKey.split('/').pop() || 'audio') : (t.title || 'audio')),
         addedAt: t.addedAt || t.createdAt || Date.now(),
-        sources: t.sources || (t.sourceRef ? [{ kind: t.sourceType === 'localfs' ? 'fs' : 'custom', locator: t.sourceRef.pathOrKey || t.sourceRef.url || '', providerId: t.sourceRef.providerId, primary: true }] : []),
+        sources: t.sources || (t.sourceRef ? [{ kind: t.sourceType === 'localfs' ? 'fs' : 'custom', locator: t.sourceRef.pathOrKey || t.sourceRef.url || '', providerId: t.sourceRef.providerId, rootId: (t.sourceRef as any).rootId, primary: true }] : []),
         metaIndex: t.metaIndex || undefined
       }
       const meta: any = {}

@@ -97,8 +97,12 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
             const b = await getBlob('audioBlobs', id)
             if (b) dl = b
           } else if (preferred.kind === 'fs') {
-            const localfs: any = (window as any).__localfs
-            if (localfs && preferred.locator) dl = await localfs.readFile(preferred.locator)
+            const provider = getProvider(preferred.providerId || (track as any).sourceRef?.providerId)
+            if (provider && preferred.locator) dl = await provider.readFile(preferred.locator)
+            else {
+              const localfsFallback: any = (window as any).__localfs
+              if (localfsFallback && preferred.locator) dl = await localfsFallback.readFile(preferred.locator)
+            }
           } else {
             const provider = getProvider(preferred.providerId || (track as any).sourceRef?.providerId)
             if (provider && preferred.locator) dl = await provider.readFile(preferred.locator)
@@ -109,10 +113,10 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
           const provider = getProvider(ref.providerId)
           if (provider) {
             try { dl = await provider.readFile(ref.pathOrKey) } catch {}
-          } else if (ref.providerId === 'localfs') {
-            const localfs: any = (window as any).__localfs
-            if (localfs && isFsSupported()) {
-              try { dl = await localfs.readFile(ref.pathOrKey) } catch {}
+          } else {
+            const localfsFallback: any = (window as any).__localfs
+            if (localfsFallback && isFsSupported()) {
+              try { dl = await localfsFallback.readFile(ref.pathOrKey) } catch {}
             }
           }
         }

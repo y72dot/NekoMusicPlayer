@@ -18,8 +18,8 @@ function isAudio(name: string) {
   return !!ext && ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'oga'].includes(ext)
 }
 
-export function createLocalFSProvider(): SourceProvider {
-  const id = 'localfs'
+export function createLocalFSProvider(customId?: string): SourceProvider & { setRootHandle(h: FileSystemDirectoryHandle): void, getRootHandle(): FileSystemDirectoryHandle | null } {
+  const id = customId || 'localfs'
   let rootHandle: FileSystemDirectoryHandle | null = null
 
   return {
@@ -29,6 +29,9 @@ export function createLocalFSProvider(): SourceProvider {
     async connect() {
       rootHandle = await (window as any).showDirectoryPicker()
       devlog('provider:localfs', 'connect')
+    },
+    setRootHandle(h: FileSystemDirectoryHandle) {
+      rootHandle = h
     },
     getRootHandle() {
       return rootHandle
