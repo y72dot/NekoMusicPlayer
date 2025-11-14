@@ -2,6 +2,7 @@ import { putJSON, getJSON } from '../cache/indexeddb'
 import { useSettings } from '../../stores/settings'
 import { usePlaylists } from '../../stores/playlists'
 import { useLibrary } from '../../stores/library'
+import { devlog, devwarn } from '@/utils/devlog'
 
 let rootHandle: FileSystemDirectoryHandle | null = null
 let nmpDirHandle: FileSystemDirectoryHandle | null = null
@@ -41,6 +42,7 @@ export async function ensureNmpData() {
     await w.write(new Blob([JSON.stringify({ rootId: markerId, storageVersion: 1, ts: Date.now() })], { type: 'application/json' }))
     await w.close()
     try { localStorage.setItem('nmp.rootMarkerId', markerId); localStorage.setItem('nmp.fsRootSelected', 'true') } catch {}
+    devlog('fs', 'ensureNmpData', { marker: true })
   } catch {}
   return nmpDirHandle
 }
@@ -149,6 +151,7 @@ export async function flushAll() {
     await writeJson('settings.json', { dropbox: settings.dropbox, oss: settings.oss, cos: settings.cos, preferences: settings.preferences })
     await writeJson('playlists.json', { version: 2, playlists: playlistsV2, order: playlists.order, currentPlaylistId: playlists.currentPlaylistId })
     await writeJson('library.json', { version: 2, tracks: libTracks, order: library.order.map(id => library.tracks[id]?.uid || id) })
+    devlog('fs', 'flushAll', { tracks: Object.keys(libTracks).length, playlists: Object.keys(playlistsV2).length })
   } finally {
     flushing = false
     if (scheduled) { scheduled = false; flushAll() }

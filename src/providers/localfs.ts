@@ -1,5 +1,6 @@
 import type { SourceProvider } from './types'
 import { buildTrackFromBlob } from '../services/metadata/metadata'
+import { devlog } from '@/utils/devlog'
 
 async function* walk(dir: FileSystemDirectoryHandle, path = ''): AsyncGenerator<{ handle: FileSystemFileHandle; path: string }> {
   for await (const [name, handle] of (dir as any).entries()) {
@@ -27,6 +28,7 @@ export function createLocalFSProvider(): SourceProvider {
     name: '本地文件',
     async connect() {
       rootHandle = await (window as any).showDirectoryPicker()
+      devlog('provider:localfs', 'connect')
     },
     getRootHandle() {
       return rootHandle
@@ -38,6 +40,7 @@ export function createLocalFSProvider(): SourceProvider {
         if (!isAudio(handle.name)) continue
         result.push(path)
       }
+      devlog('provider:localfs', 'list', { count: result.length })
       return result
     },
     async readFile(path: string) {
@@ -49,6 +52,7 @@ export function createLocalFSProvider(): SourceProvider {
       }
       const fileHandle = await dir.getFileHandle(segments[segments.length - 1])
       const file = await fileHandle.getFile()
+      devlog('provider:localfs', 'read', { path })
       return file
     }
   }

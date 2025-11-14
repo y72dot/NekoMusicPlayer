@@ -1,5 +1,6 @@
 import { parseBlob } from 'music-metadata-browser'
 import type { Track, AudioFormat } from '../../providers/types'
+import { devlog, devwarn } from '@/utils/devlog'
 
 function toDataUrl(pic?: { data: Uint8Array; format: string }) {
   if (!pic) return undefined
@@ -28,6 +29,7 @@ export async function buildTrackFromBlob(params: {
   skipCover?: boolean
 }): Promise<Track> {
   const { blob, name, providerId, pathOrKey, sourceType } = params
+  devlog('metadata', 'parse start', { name, size: blob.size })
   let title = name.replace(/\.[^.]+$/, '')
   let artist = ''
   let album = ''
@@ -58,9 +60,11 @@ export async function buildTrackFromBlob(params: {
       const pic = meta.common.picture?.[0]
       cover = toDataUrl(pic)
     }
+    devlog('metadata', 'parsed', { title, artist, album, duration: duration || 0, cover: !!cover })
   } catch {}
 
   const format = extToFormat(name)
+  devlog('metadata', 'format', { name, format })
   return {
     id: `${providerId}:${pathOrKey}`,
     title,

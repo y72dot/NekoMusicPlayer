@@ -1,5 +1,6 @@
 import create from 'zustand'
 import type { ID } from '../../providers/types'
+import { devlog } from '@/utils/devlog'
 
 type Events = {
   time: (pos: number) => void
@@ -44,6 +45,11 @@ emitter.on('time', pos => useAudioState.setState({ position: pos }))
 emitter.on('duration', dur => useAudioState.setState({ duration: isFinite(dur) ? dur : 0 }))
 emitter.on('playing', () => useAudioState.setState({ playing: true }))
 emitter.on('paused', () => useAudioState.setState({ playing: false }))
+emitter.on('time', pos => devlog('audio', 'time', { pos }))
+emitter.on('duration', dur => devlog('audio', 'duration', { dur }))
+emitter.on('playing', () => devlog('audio', 'playing'))
+emitter.on('paused', () => devlog('audio', 'paused'))
+emitter.on('progress', () => devlog('audio', 'progress'))
 
 export async function setSource(src: string | Blob) {
   if (src instanceof Blob) {

@@ -8,6 +8,7 @@ import { getBlob, putBlob } from '../services/cache/indexeddb'
 import { isFsSupported } from '../services/storage/fs'
 import { useSettings } from './settings'
 import { getProvider } from '../providers/registry'
+import { devlog } from '@/utils/devlog'
 function delay(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 async function writeDurationToLibrary(id: ID) {
   for (let i = 0; i < 15; i++) {
@@ -49,15 +50,18 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
   shuffle: false,
   queue: [],
   async loadTrack(id, blob) {
+    devlog('player', 'load', { id })
     const track = useLibrary.getState().tracks[id]
     if (!track) return
     if (blob) {
       await setSource(blob)
+      devlog('player', 'setSource', { id, from: 'blob' })
       writeDurationToLibrary(id)
     } else {
       const cached = await getBlob('audioBlobs', id)
       if (cached) {
         await setSource(cached)
+        devlog('player', 'setSource', { id, from: 'cache' })
         try {
           const needs = !(track.title && track.artist) || !(track.album) || !(track.duration) || !(track.cover)
           if (needs) {
@@ -107,6 +111,7 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
           await putBlob('audioBlobs', id, dl)
         }
         await setSource(dl)
+        devlog('player', 'setSource', { id, from: 'dl' })
         writeDurationToLibrary(id)
         try {
           const name = ((track as any).filename) || ((track as any).sourceRef?.pathOrKey?.split('/').pop()) || 'audio'
@@ -123,6 +128,7 @@ export const usePlayer = create<PlaybackState & Actions>()(persist((set, get) =>
     set({ currentTrackId: id })
     try { await play() } catch {}
     set({ isPlaying: !audio.paused })
+    devlog('player', 'play', { id, isPlaying: !audio.paused })
     try {
       const recent: ID[] = JSON.parse(localStorage.getItem('recent') || '[]')
       const next = [id, ...recent.filter(x => x !== id)].slice(0, 200)

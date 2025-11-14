@@ -1,6 +1,7 @@
 import type { SourceProvider } from './types'
 import { useSettings } from '../stores/settings'
 import OSS from 'ali-oss'
+import { devlog, devwarn } from '@/utils/devlog'
 
 function isAudio(name: string) {
   const ext = name.split('.').pop()?.toLowerCase()
@@ -21,6 +22,7 @@ export function createOSSProvider(): SourceProvider {
       endpoint: s.endpoint,
       secure: true
     })
+    devlog('provider:oss', 'connect')
   }
   return {
     id,
@@ -39,14 +41,18 @@ export function createOSSProvider(): SourceProvider {
         if (!r.isTruncated) break
         continuationToken = r.nextContinuationToken
       }
+      devlog('provider:oss', 'list', { count: keys.length })
       return keys
     },
     async readFile(path: string) {
       ensure()
-      const url = client.signatureUrl(path, { expires: 3600 })
-      const res = await fetch(url)
-      return await res.blob()
+      try {
+        const url = client.signatureUrl(path, { expires: 3600 })
+        const res = await fetch(url)
+        const blob = await res.blob()
+        devlog('provider:oss', 'read', { path })
+        return blob
+      } catch (e) { devwarn('provider:oss', 'read failed', { path, err: String(e) }); throw e }
     }
   }
 }
-

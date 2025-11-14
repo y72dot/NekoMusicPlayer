@@ -1,6 +1,7 @@
 import type { SourceProvider } from './types'
 import { useSettings } from '../stores/settings'
 import COS from 'cos-js-sdk-v5'
+import { devlog, devwarn } from '@/utils/devlog'
 
 function isAudio(name: string) {
   const ext = name.split('.').pop()?.toLowerCase()
@@ -17,6 +18,7 @@ export function createCOSProvider(): SourceProvider {
         cb({ TmpSecretId: s.tmpSecretId, TmpSecretKey: s.tmpSecretKey, XCosSecurityToken: s.sessionToken, StartTime: 0, ExpiredTime: Math.floor(Date.now() / 1000) + 3600 })
       }
     })
+    devlog('provider:cos', 'connect')
   }
   async function getObjectUrl(key: string) {
     const s = useSettings.getState().cos
@@ -40,14 +42,18 @@ export function createCOSProvider(): SourceProvider {
         if (!data.IsTruncated) break
         marker = data.NextMarker
       }
+      devlog('provider:cos', 'list', { count: keys.length })
       return keys
     },
     async readFile(path: string) {
       ensure()
-      const url = await getObjectUrl(path)
-      const res = await fetch(url)
-      return await res.blob()
+      try {
+        const url = await getObjectUrl(path)
+        const res = await fetch(url)
+        const blob = await res.blob()
+        devlog('provider:cos', 'read', { path })
+        return blob
+      } catch (e) { devwarn('provider:cos', 'read failed', { path, err: String(e) }); throw e }
     }
   }
 }
-

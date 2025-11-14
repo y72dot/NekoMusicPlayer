@@ -1,5 +1,6 @@
 import type { SourceProvider } from './types'
 import { useSettings } from '../stores/settings'
+import { devlog, devwarn } from '@/utils/devlog'
 
 const API = 'https://api.dropboxapi.com/2'
 const CONTENT = 'https://content.dropboxapi.com/2'
@@ -32,6 +33,7 @@ export function createDropboxProvider(): SourceProvider {
     async connect() {
       const s = useSettings.getState().dropbox
       if (!s.accessToken) throw new Error('no token')
+      devlog('provider:dropbox', 'connect')
     },
     async listAudioFilesRecursively(root: string) {
       const s = useSettings.getState().dropbox
@@ -48,13 +50,17 @@ export function createDropboxProvider(): SourceProvider {
         hasMore = data.has_more
         cursor = data.cursor
       }
+      devlog('provider:dropbox', 'list', { count: files.length })
       return files
     },
     async readFile(path: string) {
       const token = useSettings.getState().dropbox.accessToken
       if (!token) throw new Error('no token')
-      return downloadFile(token, path)
+      try {
+        const blob = await downloadFile(token, path)
+        devlog('provider:dropbox', 'read', { path })
+        return blob
+      } catch (e) { devwarn('provider:dropbox', 'read failed', { path, err: String(e) }); throw e }
     }
   }
 }
-
