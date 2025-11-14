@@ -33,6 +33,7 @@ export interface Preferences {
   theme?: 'dark' | 'light'
   quality?: 'auto' | 'high' | 'medium' | 'low'
   notifications?: boolean
+  cacheLocalAudio?: boolean
 }
 
 type State = {
@@ -53,10 +54,9 @@ export const useSettings = create<State & Actions>()(persist((set, get) => ({
   dropbox: { appKey: '' },
   oss: {},
   cos: {},
-  preferences: { theme: 'dark', quality: 'auto', notifications: false },
+  preferences: { theme: 'dark', quality: 'auto', notifications: false, cacheLocalAudio: false },
   updateDropbox(p) { set({ dropbox: { ...get().dropbox, ...p } }) },
   updateOSS(p) { set({ oss: { ...get().oss, ...p } }) },
   updateCOS(p) { set({ cos: { ...get().cos, ...p } }) },
   updatePreferences(p) { set({ preferences: { ...get().preferences, ...p } }) }
 }), { name: 'settings' }))
-

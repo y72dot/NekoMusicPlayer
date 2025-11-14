@@ -65,6 +65,17 @@ export async function writeJson(path: string, obj: any) {
   await writeTextFile(dir, path, JSON.stringify(obj))
 }
 
+export async function readJson<T = any>(path: string): Promise<T | null> {
+  const dir = await getNmpDir()
+  if (!dir) return null
+  try {
+    const fh = await dir.getFileHandle(path)
+    const f = await (fh as any).getFile()
+    const text = await f.text()
+    return JSON.parse(text)
+  } catch { return null }
+}
+
 async function getSubDir(name: string) {
   const dir = await getNmpDir()
   if (!dir) return null
@@ -121,7 +132,14 @@ export async function flushAll() {
         sources: t.sources || (t.sourceRef ? [{ kind: t.sourceType === 'localfs' ? 'fs' : 'custom', locator: t.sourceRef.pathOrKey || t.sourceRef.url || '', providerId: t.sourceRef.providerId, primary: true }] : []),
         metaIndex: t.metaIndex || undefined
       }
-      libTracks[core.uid] = core
+      const meta: any = {}
+      if (t.title) meta.title = t.title
+      if (t.artist) meta.artist = t.artist
+      if (t.album) meta.album = t.album
+      if (t.duration && t.duration > 0) meta.duration = t.duration
+      if (t.trackNo) meta.trackNo = t.trackNo
+      if (t.year) meta.year = t.year
+      libTracks[core.uid] = { ...core, meta }
     }
     const playlistsV2: any = {}
     for (const pid of Object.keys(playlists.playlists)) {

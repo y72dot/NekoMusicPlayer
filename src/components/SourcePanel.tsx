@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createLocalFSProvider, scanLocalFSTracks } from '../providers/localfs'
+import { createFileInputProvider } from '../providers/fileinput'
 import { createDropboxProvider } from '../providers/dropbox'
 import { createOSSProvider } from '../providers/oss'
 import { createCOSProvider } from '../providers/cos'
@@ -9,13 +10,19 @@ import { putBlob, getBlob } from '../services/cache/indexeddb'
 import { useSettings } from '../stores/settings'
 import { registerProvider } from '../providers/registry'
 import { extToFormat } from '../services/metadata/metadata'
-import { setRootHandle, ensureNmpData, flushAll, scheduleFlush } from '../services/storage/fs'
+import { setRootHandle, ensureNmpData, flushAll, scheduleFlush, isFsSupported, readJson, loadRootHandleFromIDB } from '../services/storage/fs'
+import { usePlaylists } from '../stores/playlists'
 
 export default function SourcePanel() {
   const [scanning, setScanning] = useState(false)
   const [testing, setTesting] = useState<null | 'dropbox' | 'oss' | 'cos'>(null)
   const [tab, setTab] = useState<'local'|'dropbox'|'oss'|'cos'>('local')
   const [local] = useState(() => createLocalFSProvider())
+  const [fileMsg, setFileMsg] = useState('')
+  const [snapMsg, setSnapMsg] = useState('')
+  const [rootSelected, setRootSelected] = useState(false)
+  const [libCount, setLibCount] = useState(0)
+  const [plsCount, setPlsCount] = useState(0)
   const [dbx] = useState(() => createDropboxProvider())
   const [oss] = useState(() => createOSSProvider())
   const [cos] = useState(() => createCOSProvider())
@@ -25,6 +32,31 @@ export default function SourcePanel() {
   const library = useLibrary()
   const player = usePlayer()
   const settings = useSettings()
+  const playlists = usePlaylists()
+
+  // 初始化状态信息
+  useState(() => {
+    (async () => {
+      try {
+        const flag = localStorage.getItem('nmp.fsRootSelected') === 'true'
+        const h = await loadRootHandleFromIDB()
+        setRootSelected(!!flag && !!h)
+        const libSnap = await readJson<any>('library.json')
+        const plsSnap = await readJson<any>('playlists.json')
+        if (!libSnap || !plsSnap) setSnapMsg('未找到快照，将在导入后生成。')
+        setLibCount(Object.keys(library.tracks).length)
+        setPlsCount(playlists.order.length)
+      } catch {}
+    })()
+    return null
+  })
+
+  // 订阅库与歌单变化
+  useState(() => {
+    const unsub1 = useLibrary.subscribe(s => s.tracks, () => setLibCount(Object.keys(useLibrary.getState().tracks).length))
+    const unsub2 = usePlaylists.subscribe(s => s.order, () => setPlsCount(usePlaylists.getState().order.length))
+    return () => { try { (unsub1 as any)() } catch {}; try { (unsub2 as any)() } catch {} }
+  })
 
   async function importLocal() {
     setScanning(true)
@@ -38,49 +70,68 @@ export default function SourcePanel() {
           await ensureNmpData()
         }
       } catch {}
+      try {
+        const libSnap = await readJson<any>('library.json')
+        const plsSnap = await readJson<any>('playlists.json')
+        if (!libSnap || !plsSnap) setSnapMsg('未找到已有 JSON，首次导入将生成快照。')
+      } catch {}
       const files = await local.listAudioFilesRecursively('/')
-      const tracks = files.map(p => ({
-        uid: `${local.id}:${p}`,
-        id: `${local.id}:${p}`,
-        filename: p.split('/').pop() || 'audio',
-        addedAt: Date.now(),
-        sources: [{ kind: 'fs', locator: p, providerId: local.id, primary: true }],
-        format: extToFormat(p),
-        sourceType: 'localfs',
-        sourceRef: { providerId: local.id, pathOrKey: p }
-      })) as any
-      library.upsertTracks(tracks)
-      if (!player.currentTrackId && tracks.length) {
-        player.setQueue(tracks.map((t: any) => t.uid))
-      }
-      await flushAll()
-      ;(async () => {
-        const batch = 4
-        for (let i = 0; i < files.length; i += batch) {
-          const slice = files.slice(i, i + batch)
-          await Promise.all(slice.map(async p => {
-            try {
-              const blob = await local.readFile(p)
-              const name = p.split('/').pop() || 'audio'
-              const parsed = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: local.id, pathOrKey: p, sourceType: 'localfs', skipCover: true })
-              const id = `${local.id}:${p}`
-              const cur = useLibrary.getState().tracks[id]
-              if (!cur) return
-              const merged: any = { ...cur }
-              for (const k of ['title','artist','album','albumArtist','trackNo','discNo','duration','year','genres','cover','format','bitrate','sampleRate','channels'] as const) {
-                const v = (parsed as any)[k]
-                if (v != null && (typeof v === 'number' ? v > 0 : String(v).length > 0)) merged[k] = v
-              }
-              library.upsertTracks([merged])
-              scheduleFlush()
-            } catch {}
-          }))
-          await new Promise(r => setTimeout(r, 0))
+      const batch = 5
+      const queueIds: string[] = []
+      for (let i = 0; i < files.length; i += batch) {
+        const slice = files.slice(i, i + batch)
+        const results = await Promise.all(slice.map(async p => {
+          try {
+            const blob = await local.readFile(p)
+            const name = p.split('/').pop() || 'audio'
+            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: local.id, pathOrKey: p, sourceType: 'localfs' })
+            return track
+          } catch { return null }
+        }))
+        const valid = results.filter(Boolean) as any[]
+        if (valid.length) {
+          library.upsertTracks(valid)
+          queueIds.push(...valid.map(t => t.id))
+          scheduleFlush()
         }
-      })()
+        await new Promise(r => setTimeout(r, 0))
+      }
+      if (!player.currentTrackId && queueIds.length) player.setQueue(queueIds)
     } finally {
       setScanning(false)
     }
+  }
+
+  async function refreshLocal() {
+    setScanning(true)
+    setFileMsg('')
+    try {
+      const h = (local as any).getRootHandle?.()
+      if (!h) { setFileMsg('未绑定本地音乐文件夹'); return }
+      const files = await local.listAudioFilesRecursively('/')
+      const existing = new Set(Object.keys(library.tracks))
+      const news: string[] = []
+      for (const p of files) { const id = `${local.id}:${p}`; if (!existing.has(id)) news.push(p) }
+      if (!news.length) { setFileMsg('没有发现新增文件'); return }
+      const batch = 5
+      let added = 0
+      for (let i = 0; i < news.length; i += batch) {
+        const slice = news.slice(i, i + batch)
+        const results = await Promise.all(slice.map(async p => {
+          try {
+            const blob = await local.readFile(p)
+            const name = p.split('/').pop() || 'audio'
+            const track = await (await import('../services/metadata/metadata')).buildTrackFromBlob({ blob, name, providerId: local.id, pathOrKey: p, sourceType: 'localfs' })
+            await putBlob('audioBlobs', track.id, blob)
+            return track
+          } catch { return null }
+        }))
+        const valid = results.filter(Boolean) as any[]
+        if (valid.length) { library.upsertTracks(valid); scheduleFlush(); added += valid.length }
+        await new Promise(r => setTimeout(r, 0))
+      }
+      setFileMsg(`已刷新，新增 ${added} 个文件`)
+    } finally { setScanning(false) }
   }
 
   async function importDropbox() {
@@ -207,7 +258,94 @@ export default function SourcePanel() {
       {tab === 'local' && (
         <div className="col">
           <div className="muted">选择包含音频文件的文件夹，系统将自动扫描并导入。</div>
-          <button className="btn" onClick={importLocal} disabled={scanning}>{scanning ? '扫描中…' : '导入本地文件夹'}</button>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn" onClick={importLocal} disabled={scanning || !isFsSupported()}>{scanning ? '扫描中…' : '设置本地音乐文件夹'}</button>
+            <button className="btn" onClick={refreshLocal} disabled={scanning || !isFsSupported()}>刷新目录</button>
+            {!isFsSupported() && (
+              <>
+                <button className="btn" onClick={async () => {
+                  setScanning(true)
+                  setFileMsg('')
+                  try {
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.multiple = true
+                    input.accept = 'audio/*'
+                    input.onchange = async () => {
+                      const files = input.files
+                      if (!files || !files.length) return
+                      const fp = createFileInputProvider(files)
+                      registerProvider(fp)
+                      const paths = await fp.listAudioFilesRecursively('/')
+                      const tracks = paths.map(p => ({
+                        uid: `${fp.id}:${p}`,
+                        id: `${fp.id}:${p}`,
+                        filename: p.split('/').pop() || 'audio',
+                        addedAt: Date.now(),
+                        sources: [{ kind: 'indexeddb', locator: `${fp.id}:${p}`, providerId: fp.id, primary: true }],
+                        format: extToFormat(p),
+                        sourceType: 'custom',
+                        sourceRef: { providerId: fp.id, pathOrKey: p }
+                      })) as any
+                      useLibrary.getState().upsertTracks(tracks)
+                      for (const p of paths) {
+                        const id = `${fp.id}:${p}`
+                        const f = await fp.readFile(p)
+                        await putBlob('audioBlobs', id, f)
+                      }
+                      if (!player.currentTrackId && tracks.length) player.setQueue(tracks.map((t: any) => t.uid))
+                      await flushAll()
+                      setFileMsg(`已导入 ${paths.length} 个文件`)
+                    }
+                    input.click()
+                  } finally { setScanning(false) }
+                }}>选择文件</button>
+                <button className="btn" onClick={async () => {
+                  setScanning(true)
+                  setFileMsg('')
+                  try {
+                    const input = document.createElement('input') as any
+                    input.type = 'file'
+                    input.webkitdirectory = true
+                    input.onchange = async () => {
+                      const files = input.files
+                      if (!files || !files.length) return
+                      const fp = createFileInputProvider(files)
+                      registerProvider(fp)
+                      const paths = await fp.listAudioFilesRecursively('/')
+                      const tracks = paths.map(p => ({
+                        uid: `${fp.id}:${p}`,
+                        id: `${fp.id}:${p}`,
+                        filename: p.split('/').pop() || 'audio',
+                        addedAt: Date.now(),
+                        sources: [{ kind: 'indexeddb', locator: `${fp.id}:${p}`, providerId: fp.id, primary: true }],
+                        format: extToFormat(p),
+                        sourceType: 'custom',
+                        sourceRef: { providerId: fp.id, pathOrKey: p }
+                      })) as any
+                      useLibrary.getState().upsertTracks(tracks)
+                      for (const p of paths) {
+                        const id = `${fp.id}:${p}`
+                        const f = await fp.readFile(p)
+                        await putBlob('audioBlobs', id, f)
+                      }
+                      if (!player.currentTrackId && tracks.length) player.setQueue(tracks.map((t: any) => t.uid))
+                      await flushAll()
+                      setFileMsg(`已导入 ${paths.length} 个文件`)
+                    }
+                    input.click()
+                  } finally { setScanning(false) }
+                }}>选择文件夹</button>
+              </>
+            )}
+          </div>
+          <div className="col" style={{ gap: 4, marginTop: 8 }}>
+            {!!snapMsg && <div className="muted">{snapMsg}</div>}
+            <div className="muted">目录绑定：{rootSelected ? '已绑定' : '未绑定'}</div>
+            <div className="muted">曲库条数：{libCount}</div>
+            <div className="muted">歌单数量：{plsCount}</div>
+          </div>
+          {!!fileMsg && <div className="muted">{fileMsg}</div>}
         </div>
       )}
       {tab === 'dropbox' && (

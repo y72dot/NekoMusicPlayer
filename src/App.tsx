@@ -7,8 +7,10 @@ import SettingsPanel from './components/SettingsPanel'
 import { useLibrary } from './stores/library'
 import { usePlaylists } from './stores/playlists'
 import { usePlayer } from './stores/player'
-import { getBlob, putBlob } from './services/cache/indexeddb'
+import { getBlob } from './services/cache/indexeddb'
 import { useAudioState } from './services/audio/PlayerCore'
+import { readJson } from './services/storage/fs'
+import { extToFormat } from './services/metadata/metadata'
 import { isFsSupported, loadRootHandleFromIDB, ensureNmpData, scheduleFlush } from './services/storage/fs'
 
 export default function App() {
@@ -60,6 +62,47 @@ export default function App() {
       const h = await loadRootHandleFromIDB()
       if (!h) return
       await ensureNmpData()
+      try {
+        const lib = await readJson<any>('library.json')
+        const pls = await readJson<any>('playlists.json')
+        if (lib && lib.version === 2) {
+          const items: any[] = []
+          for (const uid of Object.keys(lib.tracks || {})) {
+            const core = lib.tracks[uid] || {}
+            const m = core.meta || {}
+            const src = (core.sources || [])[0] || {}
+            const providerId = src.providerId || 'localfs'
+            const pathOrKey = src.locator || core.filename || uid
+            const title = m.title || core.filename || 'audio'
+            const artist = m.artist || ''
+            const album = m.album || ''
+            const format = extToFormat(core.filename || pathOrKey)
+            const t: any = {
+              id: uid,
+              uid,
+              filename: core.filename,
+              addedAt: core.addedAt,
+              sources: core.sources || [],
+              title,
+              artist,
+              album,
+              duration: m.duration,
+              format,
+              sourceType: src.kind === 'fs' ? 'localfs' : 'custom',
+              sourceRef: { providerId, pathOrKey }
+            }
+            items.push(t)
+          }
+          if (items.length) useLibrary.getState().upsertTracks(items)
+        }
+        if (pls && pls.version === 2) {
+          const data = Object.keys(pls.playlists || {}).map(pid => {
+            const p = pls.playlists[pid]
+            return { id: p.id, name: p.name, trackIds: p.trackUids || [], createdAt: Date.now(), updatedAt: Date.now() }
+          })
+          if (data.length) usePlaylists.getState().importPlaylistsWithValidation(data)
+        }
+      } catch {}
     })()
   }, [])
 
@@ -122,8 +165,7 @@ export default function App() {
       if (!next) return
       const localfs: any = (window as any).__localfs
       if (next.sourceType === 'localfs' && localfs) {
-        const blob = await localfs.readFile(next.sourceRef.pathOrKey)
-        await putBlob('audioBlobs', nextId, blob)
+        try { await localfs.readFile(next.sourceRef.pathOrKey) } catch {}
       }
     })()
   }, [audioState.duration, player.position, player.currentTrackId])
