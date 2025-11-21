@@ -5,6 +5,7 @@ const STORE = 'kv'
 const BLOB_STORE = 'blobs'
 const logger = createLogger('IndexedDB')
 const LS_KEY_PLAYLISTS = 'neko.playlists.v1'
+const LS_KEY_CURRENT_ID = 'neko.currentPlaylistId.v1'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -79,6 +80,46 @@ export async function getPlaylists<T>(): Promise<T | undefined> {
       return parsed
     } catch (err) {
       logger.error('localStorage get error', err)
+      return undefined
+    }
+  }
+}
+
+export async function setCurrentPlaylistId(id: string) {
+  try {
+    await withStore('readwrite', store => { store.put(id, 'currentId') })
+  } catch (e) {
+    logger.warn('setCurrentPlaylistId fallback to localStorage', e)
+    try { localStorage.setItem(LS_KEY_CURRENT_ID, id) } catch (err) { logger.error('localStorage set currentId error', err) }
+  }
+}
+
+export async function getCurrentPlaylistId(): Promise<string | undefined> {
+  try {
+    const db = await openDb()
+    return new Promise<string | undefined>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly')
+      const store = tx.objectStore(STORE)
+      const req = store.get('currentId')
+      req.onsuccess = () => {
+        const r = req.result as string | undefined
+        if (r === undefined) {
+          try {
+            const raw = localStorage.getItem(LS_KEY_CURRENT_ID)
+            if (raw) { resolve(raw); return }
+          } catch (err) { logger.error('localStorage get currentId parse error', err) }
+        }
+        resolve(r)
+      }
+      req.onerror = () => { logger.error('getCurrentPlaylistId error', req.error); reject(req.error) }
+    })
+  } catch (e) {
+    logger.warn('getCurrentPlaylistId fallback to localStorage', e)
+    try {
+      const raw = localStorage.getItem(LS_KEY_CURRENT_ID)
+      return raw ?? undefined
+    } catch (err) {
+      logger.error('localStorage get currentId error', err)
       return undefined
     }
   }

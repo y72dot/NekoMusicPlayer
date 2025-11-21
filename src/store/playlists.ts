@@ -1,11 +1,31 @@
 import { defineStore } from 'pinia'
 import type { Playlist } from '../models/playlist'
 import type { Track } from '../models/track'
-import { getPlaylists, setPlaylists } from '../services/db'
+import { getPlaylists, setPlaylists, getCurrentPlaylistId, setCurrentPlaylistId } from '../services/db'
 import { createLogger } from '../services/logger'
 
 function now() { return Date.now() }
 const logger = createLogger('Playlists')
+function sanitize(playlists: Playlist[]): Playlist[] {
+  return playlists.map(p => ({
+    id: p.id,
+    name: p.name,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    tracks: p.tracks.map(t => ({
+      id: t.id,
+      title: t.title,
+      artist: t.artist,
+      album: t.album,
+      coverUrl: typeof t.coverUrl === 'string' && t.coverUrl.startsWith('blob:') ? undefined : t.coverUrl,
+      duration: t.duration,
+      sourceId: t.sourceId,
+      sourceRef: t.sourceRef,
+      url: typeof t.url === 'string' && t.url.startsWith('blob:') ? undefined : t.url,
+      format: t.format,
+    })),
+  }))
+}
 
 export const usePlaylistsStore = defineStore('playlists', {
   state: () => ({
@@ -29,12 +49,18 @@ export const usePlaylistsStore = defineStore('playlists', {
       } else {
         logger.log('skip restore because state already exists', { length: this.playlists.length })
       }
-      if (!this.currentId || !this.playlists.some(p => p.id === this.currentId)) {
+      const savedId = await getCurrentPlaylistId()
+      if (savedId && this.playlists.some(p => p.id === savedId)) {
+        this.currentId = savedId
+        logger.log('currentId restored', { currentId: this.currentId })
+      } else if (!this.currentId || !this.playlists.some(p => p.id === this.currentId)) {
         this.currentId = this.playlists[0]?.id || ''
         logger.log('currentId corrected', { currentId: this.currentId })
       } else {
         logger.log('currentId kept', { currentId: this.currentId })
       }
+      await setCurrentPlaylistId(this.currentId)
+      await this.persist()
     },
     async create(name: string) {
       const p: Playlist = { id: crypto.randomUUID(), name, tracks: [], createdAt: now(), updatedAt: now() }
@@ -54,7 +80,7 @@ export const usePlaylistsStore = defineStore('playlists', {
       }
       await this.persist()
     },
-    setCurrent(id: string) { this.currentId = id },
+    async setCurrent(id: string) { this.currentId = id; await setCurrentPlaylistId(id) },
     async addTracks(id: string, tracks: Track[]) {
       const p = this.playlists.find(x => x.id === id)
       if (!p) return
@@ -72,10 +98,11 @@ export const usePlaylistsStore = defineStore('playlists', {
       p.tracks.splice(to, 0, item)
       p.updatedAt = now(); await this.persist()
     },
-    async persist() {
-      logger.log('persist', { length: this.playlists.length })
-      await setPlaylists(this.playlists)
-    },
+  async persist() {
+    logger.log('persist', { length: this.playlists.length })
+    await setPlaylists(sanitize(this.playlists))
+    await setCurrentPlaylistId(this.currentId)
+  },
     exportJson(): string { return JSON.stringify(this.playlists) },
     importJson(json: string) {
       try {

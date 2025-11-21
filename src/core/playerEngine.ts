@@ -6,6 +6,7 @@ import { registry } from '../adapters/registry'
 
 class PlayerEngineImpl {
   private audio = new Audio()
+  private currentObjectUrl?: string
 
   constructor() {
     this.audio.preload = 'metadata'
@@ -50,15 +51,27 @@ class PlayerEngineImpl {
     const t = s.current
     if (!t) return
     let src: string | Blob | undefined = t.url
+    if (typeof src === 'string' && src.startsWith('blob:')) {
+      src = undefined
+    }
     if (!src) {
       const a = registry.get(t.sourceId)
       if (a) {
         const r = await a.load(t)
         src = r.url
+        if (typeof src === 'string' && src.startsWith('blob:')) {
+          src = undefined
+        }
       }
     }
+    if (this.currentObjectUrl) {
+      URL.revokeObjectURL(this.currentObjectUrl)
+      this.currentObjectUrl = undefined
+    }
     if (src instanceof Blob) {
-      this.audio.src = URL.createObjectURL(src)
+      const u = URL.createObjectURL(src)
+      this.currentObjectUrl = u
+      this.audio.src = u
     } else if (typeof src === 'string') {
       this.audio.src = src
     } else {
