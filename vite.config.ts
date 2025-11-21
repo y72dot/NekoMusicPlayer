@@ -1,21 +1,6 @@
 import { defineConfig } from 'vite'
-import { fileURLToPath } from 'node:url'
-import react from '@vitejs/plugin-react'
-
-const srcDir = fileURLToPath(new URL('./src', import.meta.url))
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: [
-      { find: '@', replacement: srcDir },
-      { find: /^@\/(.*)$/, replacement: `${srcDir}/$1` }
-    ]
-  },
-  optimizeDeps: {
-    include: ['buffer']
-  },
-  server: {
-    port: 5173
-  }
+  plugins: [vue()],
 })
