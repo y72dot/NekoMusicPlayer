@@ -17,14 +17,26 @@ export const usePlaylistsStore = defineStore('playlists', {
   },
   actions: {
     async init() {
+      console.log('[Playlists] init start')
       const data = await getPlaylists<Playlist[]>()
-      if (data?.length) {
-        this.playlists = data
-        this.currentId = this.playlists[0].id
+      const loaded = Array.isArray(data) ? data : []
+      console.log('[Playlists] loaded from DB', { length: loaded.length })
+      if (!this.playlists.length) {
+        this.playlists = loaded
+        console.log('[Playlists] state restored', { length: this.playlists.length })
+      } else {
+        console.log('[Playlists] skip restore because state already exists', { length: this.playlists.length })
+      }
+      if (!this.currentId || !this.playlists.some(p => p.id === this.currentId)) {
+        this.currentId = this.playlists[0]?.id || ''
+        console.log('[Playlists] currentId corrected', { currentId: this.currentId })
+      } else {
+        console.log('[Playlists] currentId kept', { currentId: this.currentId })
       }
     },
     async create(name: string) {
       const p: Playlist = { id: crypto.randomUUID(), name, tracks: [], createdAt: now(), updatedAt: now() }
+      console.log('[Playlists] create', { id: p.id, name: p.name })
       this.playlists.push(p)
       this.currentId = p.id
       await this.persist()
@@ -58,7 +70,10 @@ export const usePlaylistsStore = defineStore('playlists', {
       p.tracks.splice(to, 0, item)
       p.updatedAt = now(); await this.persist()
     },
-    async persist() { await setPlaylists(this.playlists) },
+    async persist() {
+      console.log('[Playlists] persist', { length: this.playlists.length })
+      await setPlaylists(this.playlists)
+    },
     exportJson(): string { return JSON.stringify(this.playlists) },
     importJson(json: string) {
       try {

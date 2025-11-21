@@ -13,5 +13,8 @@ app.use(router)
 registerAdapters()
 playerEngine.init()
 const playlists = usePlaylistsStore(pinia)
-await playlists.init()
-app.mount('#app')
+// 使用异步初始化而非顶层 await，避免生产构建报错
+;(async () => {
+  await playlists.init()
+  app.mount('#app')
+})()

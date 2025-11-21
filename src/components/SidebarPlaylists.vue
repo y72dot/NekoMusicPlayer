@@ -15,12 +15,13 @@
   </aside>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { usePlaylistsStore } from '../store/playlists'
 
 const playlists = usePlaylistsStore()
 const newName = ref('')
-onMounted(async () => { await playlists.init(); if (playlists.current) newName.value = playlists.current.name })
+// 监听当前歌单变化，更新输入框显示；不在此重复调用 init，避免状态被覆盖
+watch(() => playlists.current, (cur) => { newName.value = cur?.name || '' }, { immediate: true })
 async function create() { const name = prompt('歌单名称') || '新建歌单'; await playlists.create(name); newName.value = playlists.current?.name || '' }
 async function rename() { if (!playlists.current) return; await playlists.rename(playlists.current.id, newName.value) }
 async function remove() { if (!playlists.current) return; if (confirm('删除当前歌单？')) await playlists.remove(playlists.current.id) }
