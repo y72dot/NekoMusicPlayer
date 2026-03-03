@@ -1,14 +1,21 @@
 <template>
-  <div class="action-menu" :class="{ expanded }" @mouseleave="expanded = false">
+  <div class="action-menu" :class="{ expanded: isExpanded }" @mouseleave="onMouseLeave">
     <div class="actions-wrapper">
-      <button class="action-btn" title="立即播放" @click.stop="$emit('play')">▶️</button>
-      <button class="action-btn" title="加入队列" @click.stop="$emit('addToQueue')">➕</button>
+      <button class="action-btn" title="立即播放" @click.stop="handleAction('play')">▶️</button>
+      <button class="action-btn" title="加入队列" @click.stop="handleAction('addToQueue')">➕</button>
       
       <!-- Hidden buttons container -->
       <div class="hidden-wrapper">
-        <button class="action-btn" title="添加到歌单" @click.stop="handleClick('addToPlaylist')">📥</button>
-        <button class="action-btn danger" title="删除" @click.stop="handleClick('remove')">🗑️</button>
+        <button class="action-btn" title="添加到歌单" @click.stop="handleAction('addToPlaylist')">📥</button>
+        <button class="action-btn danger" title="删除" @click.stop="handleAction('remove')">🗑️</button>
       </div>
+      
+      <button class="action-btn toggle-select-btn" 
+        :class="{ active: isSelected }"
+        title="多选模式" 
+        @click.stop="toggleSelect">
+        {{ isSelected ? '☑️' : '☐' }}
+      </button>
 
       <button class="action-btn more-btn" title="更多" @click.stop="toggle">⋯</button>
     </div>
@@ -16,7 +23,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useSelectionStore } from '../store/selection'
+
+const props = defineProps<{ trackId: string }>()
 
 const emit = defineEmits<{
   (e: 'play'): void
@@ -25,15 +35,50 @@ const emit = defineEmits<{
   (e: 'remove'): void
 }>()
 
-const expanded = ref(false)
+const selection = useSelectionStore()
+const localExpanded = ref(false)
+
+const isSelected = computed(() => selection.selectedIds.has(props.trackId))
+
+// Menu is expanded if locally expanded OR if this item is selected in multi-select mode
+const isExpanded = computed(() => {
+  if (selection.isMultiSelectMode && isSelected.value) {
+    return true
+  }
+  return localExpanded.value
+})
 
 function toggle() {
-  expanded.value = !expanded.value
+  localExpanded.value = !localExpanded.value
 }
 
-function handleClick(event: 'addToPlaylist' | 'remove') {
+function onMouseLeave() {
+  // Only auto-close if not selected in multi-select mode
+  if (!isSelected.value) {
+    localExpanded.value = false
+  }
+}
+
+function toggleSelect() {
+  // If not in multi-select mode, entering it with this item
+  if (!selection.isMultiSelectMode) {
+    selection.setMultiSelectMode(true)
+    selection.select(props.trackId)
+    // No longer forcing localExpanded here, relying on isExpanded computed
+  } else {
+    // Toggle selection for this item
+    selection.toggleSelection(props.trackId)
+  }
+}
+
+function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove') {
+  // If in multi-select mode and this item is selected, 
+  // the parent component should handle the action for ALL selected items.
+  // We just emit the event, and parent checks selection store.
   emit(event)
-  expanded.value = false
+  if (!isSelected.value) {
+    localExpanded.value = false
+  }
 }
 </script>
 
@@ -52,7 +97,7 @@ function handleClick(event: 'addToPlaylist' | 'remove') {
 }
 
 .action-menu.expanded {
-  width: 150px; 
+  width: 180px; /* Increased for the new toggle button (6 * 30px) */
   background: #f0f0f0;
 }
 
@@ -74,6 +119,22 @@ function handleClick(event: 'addToPlaylist' | 'remove') {
 .action-menu.expanded .hidden-wrapper {
   width: 60px; /* 2 buttons * 30px */
   opacity: 1;
+}
+
+.toggle-select-btn {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: width 0.3s ease, opacity 0.2s ease;
+}
+
+.action-menu.expanded .toggle-select-btn {
+  width: 30px;
+  opacity: 1;
+}
+
+.toggle-select-btn.active {
+  color: #1890ff;
 }
 
 .action-btn {

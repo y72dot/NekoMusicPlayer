@@ -10,8 +10,9 @@
     <TrackList :tracks="playlists.library" :playlistId="'library'">
       <template #actions="{ track }">
         <ActionMenu 
+          :trackId="track.id"
           @play="playTrack(track)"
-          @addToQueue="player.add(track)"
+          @addToQueue="addToQueue(track)"
           @addToPlaylist="addToPlaylist(track)"
           @remove="removeTrack(track)"
         />
@@ -38,51 +39,91 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { usePlaylistsStore } from '../store/playlists'
 import { usePlayerStore } from '../store/player'
+import { useSelectionStore } from '../store/selection'
 import type { Track } from '../models/track'
 import TrackList from '../components/TrackList.vue'
 import ActionMenu from '../components/ActionMenu.vue'
 
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
+const selection = useSelectionStore()
 
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
 
+// If multi-select mode, we might be adding multiple tracks
+const isMultiAdd = computed(() => selectedTrack.value === null && selection.isMultiSelectMode)
+
 function playTrack(track: Track) {
-  // Find index in library to play correctly
-  const idx = playlists.library.findIndex(t => t.id === track.id)
-  if (idx >= 0) {
-    player.setQueue(playlists.library, idx)
-    player.play()
-  }
-}
-
-function addToPlaylist(track: Track) {
-  selectedTrack.value = track
-  showSelector.value = true
-}
-
-async function removeTrack(track: Track) {
-  if (confirm(`确定从库中移除 "${track.title}" 吗？`)) {
-    // Need to implement remove from library in store first
-    // For now we just filter locally and save
+  // If multi-select mode and this track is selected, play all selected
+  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+    // Filter library tracks that are selected, preserving order
+    const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
+    if (selectedTracks.length > 0) {
+      player.setQueue(selectedTracks)
+      player.play()
+    }
+  } else {
+    // Normal play
     const idx = playlists.library.findIndex(t => t.id === track.id)
     if (idx >= 0) {
-      playlists.library.splice(idx, 1)
-      await playlists.persist()
+      player.setQueue(playlists.library, idx)
+      player.play()
     }
   }
 }
 
+function addToQueue(track: Track) {
+  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+    const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
+    selectedTracks.forEach(t => player.queue.push(t))
+  } else {
+    player.add(track)
+  }
+}
+
+function addToPlaylist(track: Track) {
+  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+    selectedTrack.value = null // Signal multi-add
+  } else {
+    selectedTrack.value = track
+  }
+  showSelector.value = true
+}
+
+async function removeTrack(track: Track) {
+  const tracksToRemove = (selection.isMultiSelectMode && selection.isSelected(track.id))
+    ? playlists.library.filter(t => selection.isSelected(t.id))
+    : [track]
+    
+  if (confirm(`确定从库中移除 ${tracksToRemove.length} 首歌曲吗？`)) {
+    // Remove all
+    for (const t of tracksToRemove) {
+      const idx = playlists.library.findIndex(x => x.id === t.id)
+      if (idx >= 0) playlists.library.splice(idx, 1)
+    }
+    await playlists.persist()
+    selection.clear()
+  }
+}
+
 async function confirmAdd(playlistId: string) {
+  let tracksToAdd: Track[] = []
   if (selectedTrack.value) {
-    await playlists.addTracks(playlistId, [selectedTrack.value])
+    tracksToAdd = [selectedTrack.value]
+  } else if (selection.isMultiSelectMode) {
+    tracksToAdd = playlists.library.filter(t => selection.isSelected(t.id))
+  }
+  
+  if (tracksToAdd.length > 0) {
+    await playlists.addTracks(playlistId, tracksToAdd)
     showSelector.value = false
     selectedTrack.value = null
-    alert('已添加')
+    selection.clear() // Clear selection after add
+    alert(`已添加 ${tracksToAdd.length} 首歌曲`)
   }
 }
 </script>

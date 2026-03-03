@@ -19,10 +19,11 @@
     <TrackList :tracks="playlist.tracks" :playlistId="playlist.id">
       <template #actions="{ track, index }">
         <ActionMenu 
-          @play="playTrack(index)"
-          @addToQueue="player.add(track)"
+          :trackId="track.id"
+          @play="playTrack(index, track)"
+          @addToQueue="addToQueue(track)"
           @addToPlaylist="addToPlaylist(track)"
-          @remove="removeTrack(index)"
+          @remove="removeTrack(index, track)"
         />
       </template>
     </TrackList>
@@ -50,6 +51,7 @@ import { computed, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlaylistsStore } from '../store/playlists'
 import { usePlayerStore } from '../store/player'
+import { useSelectionStore } from '../store/selection'
 import TrackList from '../components/TrackList.vue'
 import ActionMenu from '../components/ActionMenu.vue'
 import type { Track } from '../models/track'
@@ -58,6 +60,7 @@ const route = useRoute()
 const router = useRouter()
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
+const selection = useSelectionStore()
 
 const playlistId = computed(() => route.params.id as string)
 const playlist = computed(() => playlists.playlists.find(p => p.id === playlistId.value))
@@ -72,31 +75,70 @@ watch(playlist, (p) => {
   if (p) newName.value = p.name
 }, { immediate: true })
 
-function playTrack(index: number) {
-  if (playlist.value) {
+function playTrack(index: number, track: Track) {
+  if (!playlist.value) return
+  
+  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+    const selectedTracks = playlist.value.tracks.filter(t => selection.isSelected(t.id))
+    if (selectedTracks.length > 0) {
+      player.setQueue(selectedTracks)
+      player.play()
+    }
+  } else {
     player.setQueue(playlist.value.tracks, index)
     player.play()
   }
 }
 
+function addToQueue(track: Track) {
+  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+    const selectedTracks = playlist.value?.tracks.filter(t => selection.isSelected(t.id)) || []
+    selectedTracks.forEach(t => player.queue.push(t))
+  } else {
+    player.add(track)
+  }
+}
+
 function addToPlaylist(track: Track) {
-  selectedTrack.value = track
+  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+    selectedTrack.value = null
+  } else {
+    selectedTrack.value = track
+  }
   showSelector.value = true
 }
 
 async function confirmAdd(targetId: string) {
+  let tracksToAdd: Track[] = []
   if (selectedTrack.value) {
-    await playlists.addTracks(targetId, [selectedTrack.value])
+    tracksToAdd = [selectedTrack.value]
+  } else if (selection.isMultiSelectMode && playlist.value) {
+    tracksToAdd = playlist.value.tracks.filter(t => selection.isSelected(t.id))
+  }
+
+  if (tracksToAdd.length > 0) {
+    await playlists.addTracks(targetId, tracksToAdd)
     showSelector.value = false
     selectedTrack.value = null
-    alert('已添加')
+    selection.clear()
+    alert(`已添加 ${tracksToAdd.length} 首歌曲`)
   }
 }
 
-async function removeTrack(index: number) {
-  if (playlist.value && confirm('从歌单中移除此歌曲？')) {
-    playlist.value.tracks.splice(index, 1)
+async function removeTrack(index: number, track: Track) {
+  if (!playlist.value) return
+  
+  const tracksToRemove = (selection.isMultiSelectMode && selection.isSelected(track.id))
+    ? playlist.value.tracks.filter(t => selection.isSelected(t.id))
+    : [track]
+
+  if (confirm(`从歌单中移除 ${tracksToRemove.length} 首歌曲？`)) {
+    // Need to handle indices carefully when removing multiple
+    // Easiest is to filter out by ID
+    const idsToRemove = new Set(tracksToRemove.map(t => t.id))
+    playlist.value.tracks = playlist.value.tracks.filter(t => !idsToRemove.has(t.id))
     await playlists.persist()
+    selection.clear()
   }
 }
 
