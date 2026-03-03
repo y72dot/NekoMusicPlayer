@@ -108,6 +108,32 @@ function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove')
   right: 0;
 }
 
+.action-btn {
+  width: 30px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+  padding: 0;
+  color: #555;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0; /* Prevent shrinking */
+}
+
+.action-btn:hover {
+  background: #e0e0e0;
+  color: #000;
+}
+
+.action-btn.danger:hover {
+  color: #ff4d4f;
+  background: #fff1f0;
+}
+
 .hidden-wrapper {
   display: flex;
   width: 0;
@@ -135,32 +161,6 @@ function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove')
 
 .toggle-select-btn.active {
   color: #1890ff;
-}
-
-.action-btn {
-  width: 30px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 14px;
-  padding: 0;
-  color: #555;
-  transition: color 0.2s, background 0.2s;
-  flex-shrink: 0; /* Prevent shrinking */
-}
-
-.action-btn:hover {
-  background: #e0e0e0;
-  color: #000;
-}
-
-.action-btn.danger:hover {
-  color: #ff4d4f;
-  background: #fff1f0;
 }
 
 .more-btn {
