@@ -1,5 +1,12 @@
 <template>
   <aside class="side">
+    <nav class="nav">
+      <router-link to="/library" class="nav-item" active-class="active">🎵 全部歌曲</router-link>
+      <router-link to="/player" class="nav-item" active-class="active">🎧 正在播放</router-link>
+      <router-link to="/import" class="nav-item" active-class="active">📥 导入音乐</router-link>
+      <router-link to="/playlists" class="nav-item" active-class="active">⚙️ 歌单管理</router-link>
+    </nav>
+    <div class="sep"></div>
     <div class="top">
       <strong>歌单</strong>
       <button @click="create">新建</button>
@@ -34,4 +41,9 @@ li { padding:6px 8px; border-radius:4px; cursor:pointer }
 li.active { background:#f0f0f0 }
 .ops { display:flex; gap:6px }
 input { flex:1 }
+.nav { display:flex; flex-direction:column; gap:4px }
+.nav-item { padding:8px; text-decoration:none; color:#333; border-radius:4px }
+.nav-item:hover { background:#f5f5f5 }
+.nav-item.active { background:#e6f7ff; color:#1890ff; font-weight:bold }
+.sep { height:1px; background:#eee; margin:8px 0 }
 </style>

@@ -1,17 +1,13 @@
 <template>
-  <div class="page">
-    <SidebarPlaylists />
-    <main class="main">
-      <h2>播放源导入</h2>
-      <ImportPanel />
-    </main>
+  <div class="page-content">
+    <h2>导入音乐</h2>
+    <ImportPanel />
   </div>
 </template>
 <script setup lang="ts">
-import SidebarPlaylists from '../components/SidebarPlaylists.vue'
 import ImportPanel from '../components/ImportPanel.vue'
 </script>
 <style scoped>
-.page { display:flex; height:100vh }
-.main { flex:1; padding:16px }
+.page-content { padding: 24px; max-width: 800px; margin: 0 auto; }
+h2 { margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
 </style>

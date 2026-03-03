@@ -5,6 +5,7 @@ const STORE = 'kv'
 const BLOB_STORE = 'blobs'
 const logger = createLogger('IndexedDB')
 const LS_KEY_PLAYLISTS = 'neko.playlists.v1'
+const LS_KEY_LIBRARY = 'neko.library.v1'
 const LS_KEY_CURRENT_ID = 'neko.currentPlaylistId.v1'
 
 function openDb(): Promise<IDBDatabase> {
@@ -31,6 +32,58 @@ async function withStore(mode: IDBTransactionMode, fn: (store: IDBObjectStore) =
     tx.oncomplete = () => { logger.info('transaction complete', { mode }); resolve() }
     tx.onerror = () => { logger.error('transaction error', tx.error); reject(tx.error) }
   })
+}
+
+export async function setLibrary(data: unknown) {
+  const plain = (() => { try { return JSON.parse(JSON.stringify(data as any)) } catch { return data } })()
+  const info = Array.isArray(plain) ? { type: 'array', length: plain.length } : { type: typeof plain }
+  logger.info('setLibrary', info)
+  try {
+    await withStore('readwrite', store => { store.put(plain, 'library') })
+  } catch (e) {
+    logger.warn('setLibrary fallback to localStorage', e)
+    try { localStorage.setItem(LS_KEY_LIBRARY, JSON.stringify(plain)) } catch (err) { logger.error('localStorage set error', err) }
+  }
+}
+
+export async function getLibrary<T>(): Promise<T | undefined> {
+  try {
+    const db = await openDb()
+    return new Promise<T | undefined>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly')
+      const store = tx.objectStore(STORE)
+      const req = store.get('library')
+      req.onsuccess = () => {
+        const r = req.result as T | undefined
+        logger.info('getLibrary result', r ? (Array.isArray(r) ? { type: 'array', length: (r as unknown as []).length } : { type: typeof r }) : 'undefined')
+        if (r === undefined) {
+          try {
+            const raw = localStorage.getItem(LS_KEY_LIBRARY)
+            if (raw) {
+              const parsed = JSON.parse(raw) as T
+              logger.info('getLibrary localStorage fallback', Array.isArray(parsed) ? { type: 'array', length: (parsed as unknown as []).length } : { type: typeof parsed })
+              resolve(parsed)
+              return
+            }
+          } catch (err) { logger.error('localStorage fallback parse error', err) }
+        }
+        resolve(r)
+      }
+      req.onerror = () => { logger.error('getLibrary error', req.error); reject(req.error) }
+    })
+  } catch (e) {
+    logger.warn('getLibrary fallback to localStorage', e)
+    try {
+      const raw = localStorage.getItem(LS_KEY_LIBRARY)
+      if (!raw) return undefined
+      const parsed = JSON.parse(raw) as T
+      logger.info('getLibrary localStorage parsed', Array.isArray(parsed) ? { type: 'array', length: (parsed as unknown as []).length } : { type: typeof parsed })
+      return parsed
+    } catch (err) {
+      logger.error('localStorage get error', err)
+      return undefined
+    }
+  }
 }
 
 export async function setPlaylists(data: unknown) {

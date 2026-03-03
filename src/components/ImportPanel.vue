@@ -30,15 +30,11 @@ async function importUrls() {
     return
   }
 
-  if (!playlists.current) {
-    console.warn('No active playlist to import to, creating default')
-    await playlists.create('Default')
-  }
-
   try {
     const tracks = await adapter.resolve(urls)
-    await playlists.addTracks(playlists.currentId, tracks)
+    await playlists.addToLibrary(tracks)
     urlText.value = ''
+    alert(`已导入 ${tracks.length} 首歌曲到库`)
   } catch (e) {
     console.error('Failed to resolve URLs:', e)
   }
@@ -55,15 +51,12 @@ async function onFiles(e: Event) {
     return
   }
   
-  if (!playlists.current) {
-     await playlists.create('Default')
-  }
-
   try {
     const tracks = await adapter.resolve(files)
-    await playlists.addTracks(playlists.currentId, tracks)
+    await playlists.addToLibrary(tracks)
     // Clear input
     input.value = ''
+    alert(`已导入 ${tracks.length} 首歌曲到库`)
   } catch (e) {
     console.error('Failed to import files:', e)
   }

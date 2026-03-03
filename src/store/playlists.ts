@@ -1,36 +1,42 @@
 import { defineStore } from 'pinia'
 import type { Playlist } from '../models/playlist'
 import type { Track } from '../models/track'
-import { getPlaylists, setPlaylists, getCurrentPlaylistId, setCurrentPlaylistId } from '../services/db'
+import { getPlaylists, setPlaylists, getCurrentPlaylistId, setCurrentPlaylistId, getLibrary, setLibrary } from '../services/db'
 import { createLogger } from '../services/logger'
 
 function now() { return Date.now() }
 const logger = createLogger('Playlists')
+
+function sanitizeTracks(tracks: Track[]): Track[] {
+  return tracks.map(t => ({
+    id: t.id,
+    uri: t.uri,
+    title: t.title,
+    artist: t.artist,
+    album: t.album,
+    coverUrl: typeof t.coverUrl === 'string' && t.coverUrl.startsWith('blob:') ? undefined : t.coverUrl,
+    duration: t.duration,
+    sourceId: t.sourceId,
+    sourceRef: t.sourceRef,
+    url: typeof t.url === 'string' && t.url.startsWith('blob:') ? undefined : t.url,
+    format: t.format,
+  }))
+}
+
 function sanitize(playlists: Playlist[]): Playlist[] {
   return playlists.map(p => ({
     id: p.id,
     name: p.name,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
-    tracks: p.tracks.map(t => ({
-      id: t.id,
-      uri: t.uri,
-      title: t.title,
-      artist: t.artist,
-      album: t.album,
-      coverUrl: typeof t.coverUrl === 'string' && t.coverUrl.startsWith('blob:') ? undefined : t.coverUrl,
-      duration: t.duration,
-      sourceId: t.sourceId,
-      sourceRef: t.sourceRef,
-      url: typeof t.url === 'string' && t.url.startsWith('blob:') ? undefined : t.url,
-      format: t.format,
-    })),
+    tracks: sanitizeTracks(p.tracks),
   }))
 }
 
 export const usePlaylistsStore = defineStore('playlists', {
   state: () => ({
     playlists: [] as Playlist[],
+    library: [] as Track[],
     currentId: '' as string,
   }),
   getters: {
@@ -41,25 +47,28 @@ export const usePlaylistsStore = defineStore('playlists', {
   actions: {
     async init() {
       logger.info('init start')
+      
+      // Load Playlists
       const data = await getPlaylists<Playlist[]>()
       const loaded = Array.isArray(data) ? data : []
-      logger.info('loaded from DB', { length: loaded.length })
       if (!this.playlists.length) {
         this.playlists = loaded
-        logger.info('state restored', { length: this.playlists.length })
-      } else {
-        logger.info('skip restore because state already exists', { length: this.playlists.length })
       }
+
+      // Load Library
+      const libData = await getLibrary<Track[]>()
+      const libLoaded = Array.isArray(libData) ? libData : []
+      if (!this.library.length) {
+        this.library = libLoaded
+      }
+
       const savedId = await getCurrentPlaylistId()
       if (savedId && this.playlists.some(p => p.id === savedId)) {
         this.currentId = savedId
-        logger.info('currentId restored', { currentId: this.currentId })
       } else if (!this.currentId || !this.playlists.some(p => p.id === this.currentId)) {
         this.currentId = this.playlists[0]?.id || ''
-        logger.info('currentId corrected', { currentId: this.currentId })
-      } else {
-        logger.info('currentId kept', { currentId: this.currentId })
       }
+      
       await setCurrentPlaylistId(this.currentId)
       await this.persist()
     },
@@ -104,15 +113,41 @@ export const usePlaylistsStore = defineStore('playlists', {
       p.updatedAt = now(); await this.persist()
     },
   async persist() {
-      logger.info('persist', { length: this.playlists.length })
+      logger.info('persist', { length: this.playlists.length, libLength: this.library.length })
       await setPlaylists(sanitize(this.playlists))
+      await setLibrary(sanitizeTracks(this.library))
       await setCurrentPlaylistId(this.currentId)
     },
-    exportJson(): string { return JSON.stringify(this.playlists) },
+    
+    async addToLibrary(tracks: Track[]) {
+      const exists = new Set(this.library.map(t => t.uri || `${t.sourceId}:${JSON.stringify(t.sourceRef)}`))
+      let added = false
+      for (const t of tracks) {
+        const key = t.uri || `${t.sourceId}:${JSON.stringify(t.sourceRef)}`
+        if (!exists.has(key)) {
+          this.library.push(t)
+          exists.add(key)
+          added = true
+        }
+      }
+      if (added) await this.persist()
+    },
+
+    exportJson(): string { return JSON.stringify({ playlists: this.playlists, library: this.library }) },
     importJson(json: string) {
       try {
-        const arr = JSON.parse(json) as Playlist[]
-        if (Array.isArray(arr)) { this.playlists = arr; this.currentId = this.playlists[0]?.id || ''; this.persist() }
+        const data = JSON.parse(json)
+        if (Array.isArray(data)) {
+          this.playlists = data
+        } else if (data && typeof data === 'object') {
+          if (Array.isArray((data as any).playlists)) this.playlists = (data as any).playlists
+          if (Array.isArray((data as any).library)) this.library = (data as any).library
+        }
+        
+        if (!this.currentId || !this.playlists.some(p => p.id === this.currentId)) {
+          this.currentId = this.playlists[0]?.id || ''
+        }
+        this.persist()
       } catch {}
     },
   },

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import type { Track } from '../models/track'
 import type { PlayMode } from '../models/settings'
 import { useSettingsStore } from './settings'
+import { usePlaylistsStore } from './playlists'
 import { playerEngine } from '../core/playerEngine'
 
 export const usePlayerStore = defineStore('player', {
@@ -41,7 +42,16 @@ export const usePlayerStore = defineStore('player', {
       playerEngine.pause()
     },
 
-    toggle() {
+    async toggle() {
+      if (!this.current && this.queue.length === 0) {
+        // Smart Play: if queue is empty, try to load library
+        const playlists = usePlaylistsStore()
+        if (playlists.library.length > 0) {
+          await this.setQueue(playlists.library, 0)
+          await this.play()
+          return
+        }
+      }
       playerEngine.toggle()
     },
     
