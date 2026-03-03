@@ -16,7 +16,29 @@
       </div>
     </header>
     
-    <TrackList :tracks="playlist.tracks" :playlistId="playlist.id" />
+    <TrackList :tracks="playlist.tracks" :playlistId="playlist.id">
+      <template #actions="{ track, index }">
+        <ActionMenu 
+          @play="playTrack(index)"
+          @addToQueue="player.add(track)"
+          @addToPlaylist="addToPlaylist(track)"
+          @remove="removeTrack(index)"
+        />
+      </template>
+    </TrackList>
+
+    <!-- Playlist Selector Modal -->
+    <div v-if="showSelector" class="modal-mask" @click="showSelector = false">
+      <div class="modal" @click.stop>
+        <h3>添加到歌单</h3>
+        <ul>
+          <li v-for="p in playlists.playlists" :key="p.id" @click="confirmAdd(p.id)">
+            {{ p.name }}
+          </li>
+        </ul>
+        <button @click="showSelector = false">取消</button>
+      </div>
+    </div>
   </div>
   <div v-else class="empty-state">
     <p>请从左侧选择一个歌单，或新建歌单。</p>
@@ -29,6 +51,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePlaylistsStore } from '../store/playlists'
 import { usePlayerStore } from '../store/player'
 import TrackList from '../components/TrackList.vue'
+import ActionMenu from '../components/ActionMenu.vue'
+import type { Track } from '../models/track'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,10 +65,40 @@ const playlist = computed(() => playlists.playlists.find(p => p.id === playlistI
 const editing = ref(false)
 const newName = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
+const showSelector = ref(false)
+const selectedTrack = ref<Track | null>(null)
 
 watch(playlist, (p) => {
   if (p) newName.value = p.name
 }, { immediate: true })
+
+function playTrack(index: number) {
+  if (playlist.value) {
+    player.setQueue(playlist.value.tracks, index)
+    player.play()
+  }
+}
+
+function addToPlaylist(track: Track) {
+  selectedTrack.value = track
+  showSelector.value = true
+}
+
+async function confirmAdd(targetId: string) {
+  if (selectedTrack.value) {
+    await playlists.addTracks(targetId, [selectedTrack.value])
+    showSelector.value = false
+    selectedTrack.value = null
+    alert('已添加')
+  }
+}
+
+async function removeTrack(index: number) {
+  if (playlist.value && confirm('从歌单中移除此歌曲？')) {
+    playlist.value.tracks.splice(index, 1)
+    await playlists.persist()
+  }
+}
 
 async function startEdit() {
   editing.value = true
@@ -90,4 +144,9 @@ button.primary { background: #1890ff; color: #fff; }
 button.danger { background: #ff4d4f; color: #fff; }
 
 .empty-state { display: flex; justify-content: center; align-items: center; height: 100%; color: #888; }
+.modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; }
+.modal { background: #fff; padding: 20px; border-radius: 8px; width: 300px; max-height: 80vh; overflow-y: auto; }
+.modal ul { list-style: none; padding: 0; margin: 0 0 16px 0; }
+.modal li { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+.modal li:hover { background: #f5f5f5; }
 </style>

@@ -9,7 +9,12 @@
     
     <TrackList :tracks="playlists.library" :playlistId="'library'">
       <template #actions="{ track }">
-        <button class="add-btn" @click.stop="addToPlaylist(track)">➕ 添加到...</button>
+        <ActionMenu 
+          @play="playTrack(track)"
+          @addToQueue="player.add(track)"
+          @addToPlaylist="addToPlaylist(track)"
+          @remove="removeTrack(track)"
+        />
       </template>
     </TrackList>
 
@@ -38,6 +43,7 @@ import { usePlaylistsStore } from '../store/playlists'
 import { usePlayerStore } from '../store/player'
 import type { Track } from '../models/track'
 import TrackList from '../components/TrackList.vue'
+import ActionMenu from '../components/ActionMenu.vue'
 
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
@@ -45,9 +51,30 @@ const player = usePlayerStore()
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
 
+function playTrack(track: Track) {
+  // Find index in library to play correctly
+  const idx = playlists.library.findIndex(t => t.id === track.id)
+  if (idx >= 0) {
+    player.setQueue(playlists.library, idx)
+    player.play()
+  }
+}
+
 function addToPlaylist(track: Track) {
   selectedTrack.value = track
   showSelector.value = true
+}
+
+async function removeTrack(track: Track) {
+  if (confirm(`确定从库中移除 "${track.title}" 吗？`)) {
+    // Need to implement remove from library in store first
+    // For now we just filter locally and save
+    const idx = playlists.library.findIndex(t => t.id === track.id)
+    if (idx >= 0) {
+      playlists.library.splice(idx, 1)
+      await playlists.persist()
+    }
+  }
 }
 
 async function confirmAdd(playlistId: string) {
