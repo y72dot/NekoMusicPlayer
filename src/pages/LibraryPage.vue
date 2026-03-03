@@ -7,23 +7,14 @@
       </div>
     </header>
     
-    <div class="track-list">
-      <div v-for="(t, i) in playlists.library" :key="t.id" class="row">
-        <div class="info" @click="play(i)">
-          <span class="index">{{ i + 1 }}</span>
-          <img v-if="t.coverUrl" :src="t.coverUrl" class="cover" />
-          <div class="meta">
-            <div class="title">{{ t.title }}</div>
-            <div class="sub">{{ t.artist || '未知艺术家' }}</div>
-          </div>
-        </div>
-        <div class="ops">
-          <button @click="addToPlaylist(t)">➕ 添加到...</button>
-        </div>
-      </div>
-      <div v-if="playlists.library.length === 0" class="empty">
-        暂无歌曲，请前往 <router-link to="/import">导入页面</router-link> 添加音乐。
-      </div>
+    <TrackList :tracks="playlists.library" :playlistId="'library'">
+      <template #actions="{ track }">
+        <button class="add-btn" @click.stop="addToPlaylist(track)">➕ 添加到...</button>
+      </template>
+    </TrackList>
+
+    <div v-if="playlists.library.length === 0" class="empty">
+      暂无歌曲，请前往 <router-link to="/import">导入页面</router-link> 添加音乐。
     </div>
 
     <!-- Simple Playlist Selector Modal -->
@@ -46,17 +37,13 @@ import { ref } from 'vue'
 import { usePlaylistsStore } from '../store/playlists'
 import { usePlayerStore } from '../store/player'
 import type { Track } from '../models/track'
+import TrackList from '../components/TrackList.vue'
 
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
 
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
-
-function play(index: number) {
-  player.setQueue(playlists.library, index)
-  player.play()
-}
 
 function addToPlaylist(track: Track) {
   selectedTrack.value = track
@@ -97,4 +84,6 @@ async function confirmAdd(playlistId: string) {
 .modal ul { list-style: none; padding: 0; margin: 0 0 16px 0; }
 .modal li { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
 .modal li:hover { background: #f5f5f5; }
+.add-btn { padding: 4px 8px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 4px; }
+.add-btn:hover { background: #f0f0f0; }
 </style>

@@ -9,6 +9,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/player', component: PlayerPage },
   { path: '/library', component: LibraryPage },
   { path: '/playlists', component: PlaylistsPage },
+  { path: '/playlist/:id', component: PlaylistsPage },
   { path: '/import', component: ImportPage },
 ]
 

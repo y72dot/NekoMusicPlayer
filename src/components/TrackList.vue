@@ -1,12 +1,18 @@
 <template>
   <div>
-    <div v-for="(t,i) in tracks" :key="t.id" class="row" draggable="true"
+    <div v-for="(t,i) in tracks" :key="t.id" class="row" :class="{ active: player.current?.id === t.id }" draggable="true"
          @dragstart="onDragStart(i)" @dragover.prevent @drop="onDrop(i)" @click="play(i)">
-      <span class="index">{{ i+1 }}</span>
+      <span class="index">
+        <span v-if="player.current?.id === t.id">🎵</span>
+        <span v-else>{{ i+1 }}</span>
+      </span>
       <img v-if="t.coverUrl" :src="t.coverUrl" class="cover" />
       <div class="meta">
-        <div class="title">{{ t.title }}</div>
+        <div class="title" :class="{ 'active-text': player.current?.id === t.id }">{{ t.title }}</div>
         <div class="sub">{{ t.artist || '未知艺术家' }} · {{ t.sourceId }}</div>
+      </div>
+      <div class="actions" v-if="$slots.actions">
+        <slot name="actions" :track="t" :index="i"></slot>
       </div>
     </div>
   </div>
@@ -29,11 +35,14 @@ async function play(i: number) {
 }
 </script>
 <style scoped>
-.row { display:flex; align-items:center; gap:12px; padding:8px; border-bottom:1px solid #eee; cursor:pointer }
+.row { display:flex; align-items:center; gap:12px; padding:8px; border-bottom:1px solid #eee; cursor:pointer; transition: background-color 0.2s; }
 .row:hover { background:#fafafa }
-.index { width:24px; color:#888 }
+.row.active { background-color: #e6f7ff; }
+.index { width:24px; color:#888; display: flex; justify-content: center; }
 .cover { width:40px; height:40px; object-fit:cover; border-radius:4px }
 .meta { display:flex; flex-direction:column }
 .title { font-weight:600 }
+.title.active-text { color: #1890ff; }
 .sub { font-size:12px; color:#666 }
+.actions { margin-left: auto; }
 </style>
