@@ -1,5 +1,6 @@
 import type { Track } from '../models/track'
 import { registry } from '../adapters/registry'
+import { UriResolver } from './uriResolver'
 
 type PlayerEvents = {
   timeupdate: { currentTime: number; duration: number }
@@ -79,28 +80,17 @@ class PlayerEngineImpl extends EventEmitter {
 
   async load(track: Track) {
     this._track = track
-    let src: string | Blob | undefined = track.url
-    
-    // Handle Blob URL string check
-    if (typeof src === 'string' && src.startsWith('blob:')) {
-      src = undefined
-    }
+    let src: string | Blob | undefined
 
-    // Resolve if no direct source
-    if (!src) {
-      const adapter = registry.get(track.sourceId)
-      if (adapter) {
-        try {
-          const result = await adapter.load(track)
-          src = result.url
-          if (typeof src === 'string' && src.startsWith('blob:')) {
-            src = undefined
-          }
-        } catch (e) {
-          console.error('Failed to resolve track source', e)
-          // Consider emitting error here too
-        }
+    if (track.uri) {
+      try {
+        const result = await UriResolver.load(track.uri)
+        src = result.url
+      } catch (e) {
+        console.warn('Failed to load via URI', e)
       }
+    } else {
+      console.error('Track missing URI, cannot load', track)
     }
 
     // Cleanup previous object URL
@@ -118,6 +108,7 @@ class PlayerEngineImpl extends EventEmitter {
       this.audio.src = src
     } else {
       this.audio.removeAttribute('src')
+      console.warn('No playable source found for track', track.title)
     }
 
     this.audio.load()

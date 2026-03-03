@@ -8,7 +8,7 @@ export type TrackUri = string
 
 export interface Track {
   id: TrackId
-  uri?: TrackUri
+  uri: TrackUri
   title: string
   artist?: string
   album?: string

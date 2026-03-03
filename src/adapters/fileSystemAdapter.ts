@@ -47,33 +47,6 @@ class FileSystemAdapter implements SourceAdapter {
     return tracks
   }
 
-  async load(track: Track): Promise<{ url: string | Blob }> {
-    // Legacy support or direct load
-    const ref = track.sourceRef as { blobId?: string }
-    
-    // If we have a URI, prefer loading from it (standard way)
-    if (track.uri) {
-      try {
-        const { resourceId } = UriResolver.parse(track.uri)
-        const blob = await getBlob(resourceId)
-        if (blob) return { url: blob }
-      } catch (e) {
-        console.warn('Failed to load from URI, falling back to sourceRef', e)
-      }
-    }
-
-    // Fallback to sourceRef
-    if (ref?.blobId) {
-      const blob = await getBlob(ref.blobId)
-      if (blob) return { url: blob }
-    }
-    
-    // Fallback to direct URL if available (though we try to avoid storing it)
-    if (track.url) return { url: track.url }
-    
-    throw new Error('File content missing')
-  }
-
   async loadByUri(resourceId: string, params: Record<string, string>): Promise<{ url: string | Blob }> {
     // resourceId is the blobId in our DB
     const blob = await getBlob(resourceId)

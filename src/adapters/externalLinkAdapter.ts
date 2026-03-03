@@ -53,19 +53,6 @@ class ExternalLinkAdapter implements SourceAdapter {
     })
   }
 
-  async load(track: Track): Promise<{ url: string | Blob }> {
-    // If URI is present, use it to get params (source of truth)
-    if (track.uri) {
-      try {
-        const { params } = UriResolver.parse(track.uri)
-        if (params.url) return { url: params.url }
-      } catch {}
-    }
-
-    const ref = track.sourceRef as { url: string }
-    return { url: ref?.url || track.url! }
-  }
-
   async loadByUri(resourceId: string, params: Record<string, string>): Promise<{ url: string | Blob }> {
     if (!params.url) {
       throw new Error('External link URI missing url parameter')

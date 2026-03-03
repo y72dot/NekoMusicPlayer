@@ -5,13 +5,12 @@ export interface SourceAdapter {
   name: string
   canResolve(input: unknown): boolean
   resolve(input: unknown): Promise<Track[]>
-  load(track: Track): Promise<{ url: string | Blob }>
   /**
    * Load resource directly from URI params
    * @param resourceId The ID part of the URI
    * @param params Query parameters
    */
-  loadByUri?(resourceId: string, params: Record<string, string>): Promise<{ url: string | Blob }>
+  loadByUri(resourceId: string, params: Record<string, string>): Promise<{ url: string | Blob }>
   serialize?(track: Track): unknown
   deserialize?(ref: unknown): Track
 }
