@@ -1,73 +1,115 @@
 import type { Track } from '../models/track'
-import type { PlayMode } from '../models/settings'
-import { usePlayerStore } from '../store/player'
-import { useSettingsStore } from '../store/settings'
 import { registry } from '../adapters/registry'
 
-class PlayerEngineImpl {
+type PlayerEvents = {
+  timeupdate: { currentTime: number; duration: number }
+  ended: void
+  error: Event
+  play: void
+  pause: void
+  volumechange: number
+  loaded: void
+}
+
+type EventHandler<T> = (payload: T) => void
+
+class EventEmitter {
+  private handlers: Map<keyof PlayerEvents, Set<EventHandler<any>>> = new Map()
+
+  on<K extends keyof PlayerEvents>(type: K, handler: EventHandler<PlayerEvents[K]>) {
+    if (!this.handlers.has(type)) {
+      this.handlers.set(type, new Set())
+    }
+    this.handlers.get(type)!.add(handler)
+    return () => this.off(type, handler)
+  }
+
+  off<K extends keyof PlayerEvents>(type: K, handler: EventHandler<PlayerEvents[K]>) {
+    const handlers = this.handlers.get(type)
+    if (handlers) {
+      handlers.delete(handler)
+    }
+  }
+
+  protected emit<K extends keyof PlayerEvents>(type: K, payload: PlayerEvents[K]) {
+    const handlers = this.handlers.get(type)
+    if (handlers) {
+      handlers.forEach(h => h(payload))
+    }
+  }
+}
+
+class PlayerEngineImpl extends EventEmitter {
   private audio = new Audio()
   private currentObjectUrl?: string
+  private _track?: Track
 
   constructor() {
+    super()
     this.audio.preload = 'metadata'
     this.bindEvents()
   }
 
-  init() {
-    const settings = useSettingsStore()
-    this.audio.volume = settings.settings.defaultVolume
-    const s = usePlayerStore()
-    s.setMode(settings.settings.playMode)
-  }
-
   private bindEvents() {
     this.audio.addEventListener('timeupdate', () => {
-      const s = usePlayerStore()
-      s.setProgress(this.audio.currentTime, this.audio.duration || 0)
+      this.emit('timeupdate', {
+        currentTime: this.audio.currentTime,
+        duration: this.audio.duration || 0
+      })
     })
     this.audio.addEventListener('ended', () => {
-      const s = usePlayerStore()
-      if (s.mode === 'single') {
-        this.play()
-      } else {
-        this.next()
-        this.play()
-      }
+      this.emit('ended', undefined)
     })
-    this.audio.addEventListener('error', () => {
-      this.next()
-      this.play()
+    this.audio.addEventListener('error', (e) => {
+      this.emit('error', e)
+    })
+    this.audio.addEventListener('play', () => {
+      this.emit('play', undefined)
+    })
+    this.audio.addEventListener('pause', () => {
+      this.emit('pause', undefined)
+    })
+    this.audio.addEventListener('volumechange', () => {
+      this.emit('volumechange', this.audio.volume)
+    })
+    this.audio.addEventListener('loadeddata', () => {
+      this.emit('loaded', undefined)
     })
   }
 
-  async loadQueue(tracks: Track[], startIndex = 0) {
-    const s = usePlayerStore()
-    s.setQueue(tracks, startIndex)
-    await this.loadCurrent()
-  }
-
-  private async loadCurrent() {
-    const s = usePlayerStore()
-    const t = s.current
-    if (!t) return
-    let src: string | Blob | undefined = t.url
+  async load(track: Track) {
+    this._track = track
+    let src: string | Blob | undefined = track.url
+    
+    // Handle Blob URL string check
     if (typeof src === 'string' && src.startsWith('blob:')) {
       src = undefined
     }
+
+    // Resolve if no direct source
     if (!src) {
-      const a = registry.get(t.sourceId)
-      if (a) {
-        const r = await a.load(t)
-        src = r.url
-        if (typeof src === 'string' && src.startsWith('blob:')) {
-          src = undefined
+      const adapter = registry.get(track.sourceId)
+      if (adapter) {
+        try {
+          const result = await adapter.load(track)
+          src = result.url
+          if (typeof src === 'string' && src.startsWith('blob:')) {
+            src = undefined
+          }
+        } catch (e) {
+          console.error('Failed to resolve track source', e)
+          // Consider emitting error here too
         }
       }
     }
+
+    // Cleanup previous object URL
     if (this.currentObjectUrl) {
       URL.revokeObjectURL(this.currentObjectUrl)
       this.currentObjectUrl = undefined
     }
+
+    // Set new source
     if (src instanceof Blob) {
       const u = URL.createObjectURL(src)
       this.currentObjectUrl = u
@@ -77,49 +119,56 @@ class PlayerEngineImpl {
     } else {
       this.audio.removeAttribute('src')
     }
+
     this.audio.load()
   }
 
   async play() {
     try {
       await this.audio.play()
-      const s = usePlayerStore()
-      s.setPlaying(true)
-    } catch {
-      const s = usePlayerStore()
-      s.setPlaying(false)
+    } catch (e) {
+      console.warn('Playback failed', e)
+      // We don't emit error here necessarily as it might be an autoplay policy block
+      // But 'error' event on audio element handles critical errors
     }
   }
+
   pause() {
     this.audio.pause()
-    const s = usePlayerStore()
-    s.setPlaying(false)
   }
+
+  toggle() {
+    if (this.audio.paused) {
+      this.play()
+    } else {
+      this.pause()
+    }
+  }
+
   seek(seconds: number) {
-    this.audio.currentTime = Math.max(0, seconds)
+    if (Number.isFinite(seconds)) {
+      this.audio.currentTime = Math.max(0, seconds)
+    }
   }
+
   setVolume(v: number) {
     this.audio.volume = Math.max(0, Math.min(1, v))
-    const s = usePlayerStore()
-    s.setVolume(this.audio.volume)
   }
-  setMode(mode: PlayMode) {
-    const s = usePlayerStore()
-    s.setMode(mode)
+
+  get volume() {
+    return this.audio.volume
   }
-  async next() {
-    const s = usePlayerStore()
-    s.next()
-    await this.loadCurrent()
+  
+  get duration() {
+    return this.audio.duration || 0
   }
-  async prev() {
-    const s = usePlayerStore()
-    s.prev()
-    await this.loadCurrent()
+
+  get currentTime() {
+    return this.audio.currentTime
   }
-  getState() {
-    const s = usePlayerStore()
-    return { current: s.current, index: s.index, mode: s.mode, volume: s.volume }
+  
+  get paused() {
+    return this.audio.paused
   }
 }
 

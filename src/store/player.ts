@@ -2,11 +2,12 @@ import { defineStore } from 'pinia'
 import type { Track } from '../models/track'
 import type { PlayMode } from '../models/settings'
 import { useSettingsStore } from './settings'
+import { playerEngine } from '../core/playerEngine'
 
 export const usePlayerStore = defineStore('player', {
   state: () => ({
     queue: [] as Track[],
-    index: loadIndex(),
+    index: 0,
     volume: useSettingsStore().settings.defaultVolume,
     mode: useSettingsStore().settings.playMode as PlayMode,
     playing: false,
@@ -19,60 +20,94 @@ export const usePlayerStore = defineStore('player', {
     },
   },
   actions: {
-    setQueue(tracks: Track[], startIndex = 0) {
+    async setQueue(tracks: Track[], startIndex = 0) {
       this.queue = tracks
       this.index = startIndex
-      persistIndex(this.index)
+      // persistIndex handled by plugin
+      if (this.current) {
+        await playerEngine.load(this.current)
+      }
     },
+    
+    async play(track?: Track) {
+      if (track) {
+        await playerEngine.load(track)
+      } else if (this.current) {
+        if (playerEngine.paused) await playerEngine.play()
+      }
+    },
+
+    pause() {
+      playerEngine.pause()
+    },
+
+    toggle() {
+      playerEngine.toggle()
+    },
+    
+    seek(time: number) {
+      playerEngine.seek(time)
+    },
+
     setMode(mode: PlayMode) {
       this.mode = mode
     },
+    
     setVolume(v: number) {
       this.volume = Math.max(0, Math.min(1, v))
+      playerEngine.setVolume(this.volume)
     },
+    
+    // Internal state setters called by event listeners
     setPlaying(p: boolean) {
       this.playing = p
-      persistIndex(this.index)
     },
+    
     setProgress(current: number, duration: number) {
       this.currentTime = current
       this.duration = duration
     },
-    next() {
+    
+    async next() {
       if (!this.queue.length) return
       if (this.mode === 'shuffle') {
         this.index = Math.floor(Math.random() * this.queue.length)
-      } else if (this.mode === 'single') {
-        // stay on current
       } else {
         this.index = (this.index + 1) % this.queue.length
       }
-      persistIndex(this.index)
+      if (this.current) {
+        await playerEngine.load(this.current)
+        await playerEngine.play()
+      }
     },
-    prev() {
+    
+    async prev() {
       if (!this.queue.length) return
       if (this.mode === 'shuffle') {
         this.index = Math.floor(Math.random() * this.queue.length)
-      } else if (this.mode === 'single') {
-        // stay on current
       } else {
         this.index = (this.index - 1 + this.queue.length) % this.queue.length
       }
-      persistIndex(this.index)
+      if (this.current) {
+        await playerEngine.load(this.current)
+        await playerEngine.play()
+      }
     },
+
+    async onTrackEnded() {
+      if (this.mode === 'single') {
+        if (this.current) {
+           playerEngine.currentTime = 0
+           await playerEngine.play()
+        }
+      } else {
+        await this.next()
+      }
+    }
+  },
+  persist: {
+    key: 'neko.player.v1.index',
+    storage: localStorage,
+    pick: ['index'],
   },
 })
-
-const LS_KEY = 'neko.player.v1.index'
-
-function loadIndex(): number {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    const n = raw != null ? Number(raw) : NaN
-    return Number.isFinite(n) ? n : -1
-  } catch { return -1 }
-}
-
-function persistIndex(i: number) {
-  try { localStorage.setItem(LS_KEY, String(i)) } catch {}
-}

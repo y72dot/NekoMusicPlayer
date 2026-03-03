@@ -17,19 +17,26 @@
 import { computed, watch } from 'vue'
 import { usePlayerStore } from '../store/player'
 import { useSettingsStore } from '../store/settings'
-import { playerEngine } from '../core/playerEngine'
 
 const player = usePlayerStore()
 const settings = useSettingsStore()
-const mode = computed({ get: () => player.mode, set: v => playerEngine.setMode(v) })
-watch(() => settings.settings.playMode, m => playerEngine.setMode(m))
+const mode = computed({ get: () => player.mode, set: v => settings.setMode(v) })
+// Watcher for settings mode is no longer needed to update Engine, 
+// because Store state updates (via settings.setMode) update PlayerStore mode, 
+// and Engine doesn't track mode anymore.
+// However, PlayerStore.mode is derived from settings store in `state`.
+// But `setMode` action in PlayerStore updates local state AND settings?
+// Let's check PlayerStore.setMode -> updates `this.mode`.
+// SettingsStore.setMode -> updates settings.
+// In ControlBar, we should use SettingsStore for persistence.
+// Let's simplify: ControlBar interacts with PlayerStore/SettingsStore.
 
-function toggle() { player.playing ? playerEngine.pause() : playerEngine.play() }
-function next() { playerEngine.next(); playerEngine.play() }
-function prev() { playerEngine.prev(); playerEngine.play() }
-function onSeek(e: Event) { const v = Number((e.target as HTMLInputElement).value); playerEngine.seek(v) }
-function onVolume(e: Event) { const v = Number((e.target as HTMLInputElement).value); playerEngine.setVolume(v); settings.setVolume(v) }
-function onMode() { settings.setMode(mode.value) }
+function toggle() { player.toggle() }
+function next() { player.next() }
+function prev() { player.prev() }
+function onSeek(e: Event) { const v = Number((e.target as HTMLInputElement).value); player.seek(v) }
+function onVolume(e: Event) { const v = Number((e.target as HTMLInputElement).value); player.setVolume(v); settings.setVolume(v) }
+function onMode() { settings.setMode(mode.value); player.setMode(mode.value) }
 
 const timeText = computed(() => `${format(player.currentTime)} / ${format(player.duration)}`)
 function format(s: number) {
