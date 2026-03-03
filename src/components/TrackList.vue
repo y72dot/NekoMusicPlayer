@@ -15,7 +15,6 @@
 import type { Track } from '../models/track'
 import { usePlaylistsStore } from '../store/playlists'
 import { usePlayerStore } from '../store/player'
-import { playerEngine } from '../core/playerEngine'
 
 const props = defineProps<{ tracks: Track[]; playlistId: string }>()
 const playlists = usePlaylistsStore()
@@ -24,7 +23,10 @@ let dragIndex = -1
 
 function onDragStart(i: number) { dragIndex = i }
 async function onDrop(i: number) { if (dragIndex >= 0 && dragIndex !== i) await playlists.reorder(props.playlistId, dragIndex, i); dragIndex = -1 }
-async function play(i: number) { await playerEngine.loadQueue(playlists.current?.tracks || [], i); playerEngine.play() }
+async function play(i: number) { 
+  await player.setQueue(props.tracks, i)
+  await player.play()
+}
 </script>
 <style scoped>
 .row { display:flex; align-items:center; gap:12px; padding:8px; border-bottom:1px solid #eee; cursor:pointer }

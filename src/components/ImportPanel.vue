@@ -22,19 +22,51 @@ const urlText = ref('')
 
 async function importUrls() {
   const urls = urlText.value.split(/\n|,|\s/).map(s => s.trim()).filter(Boolean)
+  if (!urls.length) return
+  
   const adapter = registry.findByInput(urls)
-  if (!adapter || !playlists.current) return
-  const tracks = await adapter.resolve(urls)
-  await playlists.addTracks(playlists.current.id, tracks)
-  urlText.value = ''
+  if (!adapter) {
+    console.error('No adapter found for URLs:', urls)
+    return
+  }
+
+  if (!playlists.current) {
+    console.warn('No active playlist to import to, creating default')
+    await playlists.create('Default')
+  }
+
+  try {
+    const tracks = await adapter.resolve(urls)
+    await playlists.addTracks(playlists.currentId, tracks)
+    urlText.value = ''
+  } catch (e) {
+    console.error('Failed to resolve URLs:', e)
+  }
 }
 
 async function onFiles(e: Event) {
-  const files = Array.from((e.target as HTMLInputElement).files || [])
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+
   const adapter = registry.findByInput(files)
-  if (!adapter || !playlists.current) return
-  const tracks = await adapter.resolve(files)
-  await playlists.addTracks(playlists.current.id, tracks)
+  if (!adapter) {
+    console.error('No adapter found for files')
+    return
+  }
+  
+  if (!playlists.current) {
+     await playlists.create('Default')
+  }
+
+  try {
+    const tracks = await adapter.resolve(files)
+    await playlists.addTracks(playlists.currentId, tracks)
+    // Clear input
+    input.value = ''
+  } catch (e) {
+    console.error('Failed to import files:', e)
+  }
 }
 
 function onExport() {

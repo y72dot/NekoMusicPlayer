@@ -97,7 +97,7 @@ export const usePlayerStore = defineStore('player', {
     async onTrackEnded() {
       if (this.mode === 'single') {
         if (this.current) {
-           playerEngine.currentTime = 0
+           playerEngine.seek(0)
            await playerEngine.play()
         }
       } else {

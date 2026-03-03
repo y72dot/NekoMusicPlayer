@@ -14,6 +14,7 @@ function sanitize(playlists: Playlist[]): Playlist[] {
     updatedAt: p.updatedAt,
     tracks: p.tracks.map(t => ({
       id: t.id,
+      uri: t.uri,
       title: t.title,
       artist: t.artist,
       album: t.album,
@@ -84,10 +85,14 @@ export const usePlaylistsStore = defineStore('playlists', {
     async addTracks(id: string, tracks: Track[]) {
       const p = this.playlists.find(x => x.id === id)
       if (!p) return
-      const exists = new Set(p.tracks.map(t => `${t.sourceId}:${JSON.stringify(t.sourceRef)}`))
+      // Use URI for deduplication if available, otherwise fallback to sourceId+sourceRef
+      const exists = new Set(p.tracks.map(t => t.uri || `${t.sourceId}:${JSON.stringify(t.sourceRef)}`))
       for (const t of tracks) {
-        const key = `${t.sourceId}:${JSON.stringify(t.sourceRef)}`
-        if (!exists.has(key)) p.tracks.push(t)
+        const key = t.uri || `${t.sourceId}:${JSON.stringify(t.sourceRef)}`
+        if (!exists.has(key)) {
+          p.tracks.push(t)
+          exists.add(key)
+        }
       }
       p.updatedAt = now(); await this.persist()
     },

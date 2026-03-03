@@ -12,7 +12,7 @@ export enum LogLevel {
 const DEFAULT_LEVEL = import.meta.env.DEV ? LogLevel.DEBUG : LogLevel.ERROR
 
 // Colors for console output
-const COLORS = {
+const COLORS: Record<number, string> = {
   [LogLevel.DEBUG]: 'color: #7f8c8d', // Gray
   [LogLevel.INFO]: 'color: #2980b9', // Blue
   [LogLevel.WARN]: 'color: #f39c12', // Orange
