@@ -39,32 +39,32 @@ export const usePlaylistsStore = defineStore('playlists', {
   },
   actions: {
     async init() {
-      logger.log('init start')
+      logger.info('init start')
       const data = await getPlaylists<Playlist[]>()
       const loaded = Array.isArray(data) ? data : []
-      logger.log('loaded from DB', { length: loaded.length })
+      logger.info('loaded from DB', { length: loaded.length })
       if (!this.playlists.length) {
         this.playlists = loaded
-        logger.log('state restored', { length: this.playlists.length })
+        logger.info('state restored', { length: this.playlists.length })
       } else {
-        logger.log('skip restore because state already exists', { length: this.playlists.length })
+        logger.info('skip restore because state already exists', { length: this.playlists.length })
       }
       const savedId = await getCurrentPlaylistId()
       if (savedId && this.playlists.some(p => p.id === savedId)) {
         this.currentId = savedId
-        logger.log('currentId restored', { currentId: this.currentId })
+        logger.info('currentId restored', { currentId: this.currentId })
       } else if (!this.currentId || !this.playlists.some(p => p.id === this.currentId)) {
         this.currentId = this.playlists[0]?.id || ''
-        logger.log('currentId corrected', { currentId: this.currentId })
+        logger.info('currentId corrected', { currentId: this.currentId })
       } else {
-        logger.log('currentId kept', { currentId: this.currentId })
+        logger.info('currentId kept', { currentId: this.currentId })
       }
       await setCurrentPlaylistId(this.currentId)
       await this.persist()
     },
     async create(name: string) {
       const p: Playlist = { id: crypto.randomUUID(), name, tracks: [], createdAt: now(), updatedAt: now() }
-      logger.log('create', { id: p.id, name: p.name })
+      logger.info('create', { id: p.id, name: p.name })
       this.playlists.push(p)
       this.currentId = p.id
       await this.persist()
@@ -99,10 +99,10 @@ export const usePlaylistsStore = defineStore('playlists', {
       p.updatedAt = now(); await this.persist()
     },
   async persist() {
-    logger.log('persist', { length: this.playlists.length })
-    await setPlaylists(sanitize(this.playlists))
-    await setCurrentPlaylistId(this.currentId)
-  },
+      logger.info('persist', { length: this.playlists.length })
+      await setPlaylists(sanitize(this.playlists))
+      await setCurrentPlaylistId(this.currentId)
+    },
     exportJson(): string { return JSON.stringify(this.playlists) },
     importJson(json: string) {
       try {

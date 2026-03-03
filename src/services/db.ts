@@ -11,12 +11,12 @@ function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
-      logger.log('onupgradeneeded', { version: DB_VERSION })
+      logger.info('onupgradeneeded', { version: DB_VERSION })
       const db = req.result
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE)
       if (!db.objectStoreNames.contains(BLOB_STORE)) db.createObjectStore(BLOB_STORE)
     }
-    req.onsuccess = () => { logger.log('open success'); resolve(req.result) }
+    req.onsuccess = () => { logger.info('open success'); resolve(req.result) }
     req.onerror = () => { logger.error('open error', req.error); reject(req.error) }
   })
 }
@@ -26,9 +26,9 @@ async function withStore(mode: IDBTransactionMode, fn: (store: IDBObjectStore) =
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, mode)
     const store = tx.objectStore(STORE)
-    logger.log('transaction begin', { mode })
+    logger.info('transaction begin', { mode })
     fn(store)
-    tx.oncomplete = () => { logger.log('transaction complete', { mode }); resolve() }
+    tx.oncomplete = () => { logger.info('transaction complete', { mode }); resolve() }
     tx.onerror = () => { logger.error('transaction error', tx.error); reject(tx.error) }
   })
 }
@@ -36,7 +36,7 @@ async function withStore(mode: IDBTransactionMode, fn: (store: IDBObjectStore) =
 export async function setPlaylists(data: unknown) {
   const plain = (() => { try { return JSON.parse(JSON.stringify(data as any)) } catch { return data } })()
   const info = Array.isArray(plain) ? { type: 'array', length: plain.length } : { type: typeof plain }
-  logger.log('setPlaylists', info)
+  logger.info('setPlaylists', info)
   try {
     await withStore('readwrite', store => { store.put(plain, 'playlists') })
   } catch (e) {
@@ -54,13 +54,13 @@ export async function getPlaylists<T>(): Promise<T | undefined> {
       const req = store.get('playlists')
       req.onsuccess = () => {
         const r = req.result as T | undefined
-        logger.log('getPlaylists result', r ? (Array.isArray(r) ? { type: 'array', length: (r as unknown as []).length } : { type: typeof r }) : 'undefined')
+        logger.info('getPlaylists result', r ? (Array.isArray(r) ? { type: 'array', length: (r as unknown as []).length } : { type: typeof r }) : 'undefined')
         if (r === undefined) {
           try {
             const raw = localStorage.getItem(LS_KEY_PLAYLISTS)
             if (raw) {
               const parsed = JSON.parse(raw) as T
-              logger.log('getPlaylists localStorage fallback', Array.isArray(parsed) ? { type: 'array', length: (parsed as unknown as []).length } : { type: typeof parsed })
+              logger.info('getPlaylists localStorage fallback', Array.isArray(parsed) ? { type: 'array', length: (parsed as unknown as []).length } : { type: typeof parsed })
               resolve(parsed)
               return
             }
@@ -76,7 +76,7 @@ export async function getPlaylists<T>(): Promise<T | undefined> {
       const raw = localStorage.getItem(LS_KEY_PLAYLISTS)
       if (!raw) return undefined
       const parsed = JSON.parse(raw) as T
-      logger.log('getPlaylists localStorage parsed', Array.isArray(parsed) ? { type: 'array', length: (parsed as unknown as []).length } : { type: typeof parsed })
+      logger.info('getPlaylists localStorage parsed', Array.isArray(parsed) ? { type: 'array', length: (parsed as unknown as []).length } : { type: typeof parsed })
       return parsed
     } catch (err) {
       logger.error('localStorage get error', err)
