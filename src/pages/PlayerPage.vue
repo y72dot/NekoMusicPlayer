@@ -67,14 +67,11 @@ function playTrack(index: number, track: Track) {
 }
 
 function addToQueue(track: Track) {
-  // In PlayerPage (Queue), "Add to Queue" usually means duplicate? 
-  // Or maybe we hide this button in Queue page? 
-  // Let's implement duplicate for consistency.
   if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
     const selectedTracks = player.queue.filter(t => selection.isSelected(t.id))
-    selectedTracks.forEach(t => player.queue.push({ ...t, id: crypto.randomUUID() })) // New ID for duplicate
+    selectedTracks.forEach(t => player.add({ ...t, id: crypto.randomUUID() })) // New ID for duplicate
   } else {
-    player.queue.push({ ...track, id: crypto.randomUUID() })
+    player.add({ ...track, id: crypto.randomUUID() })
   }
 }
 
@@ -107,22 +104,18 @@ async function confirmAdd(targetId: string) {
 function removeTrack(index: number, track: Track) {
   if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
     // Remove all selected from queue
-    // Filter in place
-    const idsToRemove = new Set(player.queue.filter(t => selection.isSelected(t.id)).map(t => t.id))
-    // We need to handle current playing index if we remove tracks before it
-    // This is complex. For now, simple filter.
-    const newQueue = player.queue.filter(t => !idsToRemove.has(t.id))
+    // We need indices for removeTracks
+    const indicesToRemove: number[] = []
+    player.queue.forEach((t, i) => {
+      if (selection.isSelected(t.id)) {
+        indicesToRemove.push(i)
+      }
+    })
     
-    // If current track is removed, stop or next?
-    const currentId = player.current?.id
-    if (currentId && idsToRemove.has(currentId)) {
-      player.pause() // Simple fallback
-    }
-    
-    player.queue = newQueue
+    player.removeTracks(indicesToRemove)
     selection.clear()
   } else {
-    player.queue.splice(index, 1)
+    player.remove(index)
   }
 }
 </script>

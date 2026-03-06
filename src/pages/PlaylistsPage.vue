@@ -12,6 +12,7 @@
       </div>
       <div class="actions">
         <button class="primary" @click="playAll">▶️ 播放全部</button>
+        <button class="secondary" @click="addAllToQueue">➕ 添加到队列</button>
         <button class="danger" @click="removePlaylist">🗑️ 删除歌单</button>
       </div>
     </header>
@@ -85,15 +86,14 @@ function playTrack(index: number, track: Track) {
       player.play()
     }
   } else {
-    player.setQueue(playlist.value.tracks, index)
-    player.play()
+    player.playNext(track)
   }
 }
 
 function addToQueue(track: Track) {
   if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
     const selectedTracks = playlist.value?.tracks.filter(t => selection.isSelected(t.id)) || []
-    selectedTracks.forEach(t => player.queue.push(t))
+    selectedTracks.forEach(t => player.add(t))
   } else {
     player.add(track)
   }
@@ -162,6 +162,12 @@ async function playAll() {
   }
 }
 
+async function addAllToQueue() {
+  if (playlist.value && playlist.value.tracks.length > 0) {
+    playlist.value.tracks.forEach(t => player.add(t))
+  }
+}
+
 async function removePlaylist() {
   if (playlist.value && confirm(`确定要删除歌单 "${playlist.value.name}" 吗？`)) {
     await playlists.remove(playlist.value.id)
@@ -183,6 +189,8 @@ async function removePlaylist() {
 button { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: opacity 0.2s; }
 button:hover { opacity: 0.9; }
 button.primary { background: #1890ff; color: #fff; }
+button.secondary { background: #fff; color: #1890ff; border: 1px solid #1890ff; }
+button.secondary:hover { background: #e6f7ff; }
 button.danger { background: #ff4d4f; color: #fff; }
 
 .empty-state { display: flex; justify-content: center; align-items: center; height: 100%; color: #888; }

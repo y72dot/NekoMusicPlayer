@@ -4,6 +4,8 @@
       <h2>全部歌曲</h2>
       <div class="actions">
         <span class="count">{{ playlists.library.length }} 首歌曲</span>
+        <button class="action-btn" title="播放全部" @click="playAll">▶️</button>
+        <button class="action-btn" title="添加到播放列表" @click="addAllToQueue">➕</button>
       </div>
     </header>
     
@@ -57,6 +59,19 @@ const selectedTrack = ref<Track | null>(null)
 // If multi-select mode, we might be adding multiple tracks
 const isMultiAdd = computed(() => selectedTrack.value === null && selection.isMultiSelectMode)
 
+function playAll() {
+  if (playlists.library.length > 0) {
+    player.setQueue(playlists.library)
+    player.play()
+  }
+}
+
+function addAllToQueue() {
+  if (playlists.library.length > 0) {
+    playlists.library.forEach(t => player.add(t))
+  }
+}
+
 function playTrack(track: Track) {
   // If multi-select mode and this track is selected, play all selected
   if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
@@ -67,19 +82,15 @@ function playTrack(track: Track) {
       player.play()
     }
   } else {
-    // Normal play
-    const idx = playlists.library.findIndex(t => t.id === track.id)
-    if (idx >= 0) {
-      player.setQueue(playlists.library, idx)
-      player.play()
-    }
+    // Normal play (Play Next)
+    player.playNext(track)
   }
 }
 
 function addToQueue(track: Track) {
   if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
     const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
-    selectedTracks.forEach(t => player.queue.push(t))
+    selectedTracks.forEach(t => player.add(t))
   } else {
     player.add(track)
   }
@@ -132,7 +143,10 @@ async function confirmAdd(playlistId: string) {
 .library-page { display: flex; flex-direction: column; height: 100%; }
 .header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #f0f0f0; background: #fff; position: sticky; top: 0; z-index: 5; }
 .header h2 { margin: 0; font-size: 20px; }
-.count { color: #888; font-size: 14px; }
+.actions { display: flex; align-items: center; gap: 12px; }
+.action-btn { background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 4px; }
+.action-btn:hover { background: #f0f0f0; }
+.count { color: #888; font-size: 14px; margin-right: 8px; }
 
 .track-list { flex: 1; overflow-y: auto; }
 .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #eee; }

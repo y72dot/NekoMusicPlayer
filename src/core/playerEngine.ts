@@ -161,6 +161,10 @@ class PlayerEngineImpl extends EventEmitter {
   get paused() {
     return this.audio.paused
   }
+
+  get currentTrack() {
+    return this._track
+  }
 }
 
 export const playerEngine = new PlayerEngineImpl()

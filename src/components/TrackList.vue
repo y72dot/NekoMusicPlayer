@@ -32,13 +32,28 @@ import { usePlayerStore } from '../store/player'
 import { useSelectionStore } from '../store/selection'
 
 const props = defineProps<{ tracks: Track[]; playlistId: string }>()
+const emit = defineEmits<{
+  (e: 'reorder', from: number, to: number): void
+}>()
+
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
 const selection = useSelectionStore()
 let dragIndex = -1
 
 function onDragStart(i: number) { dragIndex = i }
-async function onDrop(i: number) { if (dragIndex >= 0 && dragIndex !== i) await playlists.reorder(props.playlistId, dragIndex, i); dragIndex = -1 }
+async function onDrop(i: number) { 
+  if (dragIndex >= 0 && dragIndex !== i) {
+    if (props.playlistId === 'queue') {
+      await player.reorder(dragIndex, i)
+    } else if (props.playlistId === 'library') {
+      // Library typically doesn't support manual reordering
+    } else {
+      await playlists.reorder(props.playlistId, dragIndex, i)
+    }
+  }
+  dragIndex = -1 
+}
 
 function handleRowClick(track: Track, index: number) {
   if (selection.isMultiSelectMode) {
@@ -49,8 +64,14 @@ function handleRowClick(track: Track, index: number) {
 }
 
 async function play(i: number) { 
-  await player.setQueue(props.tracks, i)
-  await player.play()
+  // If playing from queue, we already have queue set.
+  if (props.playlistId === 'queue') {
+     await player.play(props.tracks[i])
+     player.index = i
+  } else {
+    // Play Next logic: Insert after current and play immediately
+    await player.playNext(props.tracks[i])
+  }
 }
 </script>
 
