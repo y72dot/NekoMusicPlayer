@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useSelectionStore } from '../store/selection'
 
 const props = defineProps<{ trackId: string }>()
@@ -46,6 +46,12 @@ const isExpanded = computed(() => {
     return true
   }
   return localExpanded.value
+})
+
+watch(() => selection.isMultiSelectMode, (newVal) => {
+  if (!newVal) {
+    localExpanded.value = false
+  }
 })
 
 function toggle() {

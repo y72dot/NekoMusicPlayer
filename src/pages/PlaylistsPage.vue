@@ -1,19 +1,32 @@
 <template>
   <div class="playlist-page" v-if="playlist">
     <header class="header">
-      <div class="info">
-        <h2 v-if="!editing" @click="startEdit">{{ playlist.name }} <span class="edit-icon">✎</span></h2>
-        <input v-else v-model="newName" @blur="saveName" @keyup.enter="saveName" ref="nameInput" />
-        <div class="meta">
-          <span>{{ playlist.tracks.length }} 首歌曲</span>
-          <span>·</span>
-          <span>创建于 {{ new Date(playlist.createdAt).toLocaleDateString() }}</span>
+      <div class="default-header">
+        <div class="info">
+          <h2 v-if="!editing" @click="startEdit">{{ playlist.name }} <span class="edit-icon">✎</span></h2>
+          <input v-else v-model="newName" @blur="saveName" @keyup.enter="saveName" ref="nameInput" />
+          <div class="meta">
+            <span>{{ playlist.tracks.length }} 首歌曲</span>
+            <span>·</span>
+            <span>创建于 {{ new Date(playlist.createdAt).toLocaleDateString() }}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" @click="playAll">▶️ 播放全部</button>
+          <button class="danger" @click="removePlaylist">🗑️ 删除歌单</button>
         </div>
       </div>
-      <div class="actions">
-        <button class="primary" @click="playAll">▶️ 播放全部</button>
-        <button class="secondary" @click="addAllToQueue">➕ 添加到队列</button>
-        <button class="danger" @click="removePlaylist">🗑️ 删除歌单</button>
+      <div class="batch-overlay" v-if="selection.isMultiSelectMode">
+        <BatchActionBar 
+          :count="selection.selectedIds.size"
+          @play="playTrack()"
+          @addToQueue="addToQueue()"
+          @addToPlaylist="addToPlaylist()"
+          @remove="removeTrack()"
+          @cancel="selection.clear()"
+          @selectAll="selectAll()"
+          @invertSelection="invertSelection()"
+        />
       </div>
     </header>
     
@@ -55,6 +68,7 @@ import { usePlayerStore } from '../store/player'
 import { useSelectionStore } from '../store/selection'
 import TrackList from '../components/TrackList.vue'
 import ActionMenu from '../components/ActionMenu.vue'
+import BatchActionBar from '../components/BatchActionBar.vue'
 import type { Track } from '../models/track'
 
 const route = useRoute()
@@ -76,33 +90,33 @@ watch(playlist, (p) => {
   if (p) newName.value = p.name
 }, { immediate: true })
 
-function playTrack(index: number, track: Track) {
+function playTrack(index?: number, track?: Track) {
   if (!playlist.value) return
   
-  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+  if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     const selectedTracks = playlist.value.tracks.filter(t => selection.isSelected(t.id))
     if (selectedTracks.length > 0) {
       player.setQueue(selectedTracks)
       player.play()
     }
-  } else {
+  } else if (track) {
     player.playNext(track)
   }
 }
 
-function addToQueue(track: Track) {
-  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+function addToQueue(track?: Track) {
+  if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     const selectedTracks = playlist.value?.tracks.filter(t => selection.isSelected(t.id)) || []
     selectedTracks.forEach(t => player.add(t))
-  } else {
+  } else if (track) {
     player.add(track)
   }
 }
 
-function addToPlaylist(track: Track) {
-  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+function addToPlaylist(track?: Track) {
+  if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     selectedTrack.value = null
-  } else {
+  } else if (track) {
     selectedTrack.value = track
   }
   showSelector.value = true
@@ -125,12 +139,14 @@ async function confirmAdd(targetId: string) {
   }
 }
 
-async function removeTrack(index: number, track: Track) {
+async function removeTrack(index?: number, track?: Track) {
   if (!playlist.value) return
   
-  const tracksToRemove = (selection.isMultiSelectMode && selection.isSelected(track.id))
+  const tracksToRemove = (selection.isMultiSelectMode && (!track || selection.isSelected(track.id)))
     ? playlist.value.tracks.filter(t => selection.isSelected(t.id))
-    : [track]
+    : (track ? [track] : [])
+
+  if (tracksToRemove.length === 0) return
 
   if (confirm(`从歌单中移除 ${tracksToRemove.length} 首歌曲？`)) {
     // Need to handle indices carefully when removing multiple
@@ -162,23 +178,36 @@ async function playAll() {
   }
 }
 
-async function addAllToQueue() {
-  if (playlist.value && playlist.value.tracks.length > 0) {
-    playlist.value.tracks.forEach(t => player.add(t))
-  }
-}
-
 async function removePlaylist() {
   if (playlist.value && confirm(`确定要删除歌单 "${playlist.value.name}" 吗？`)) {
     await playlists.remove(playlist.value.id)
     router.replace('/library')
   }
 }
+
+function selectAll() {
+  if (!playlist.value) return
+  playlist.value.tracks.forEach(t => {
+    if (!selection.isSelected(t.id)) {
+      selection.toggleSelection(t.id)
+    }
+  })
+}
+
+function invertSelection() {
+  if (!playlist.value) return
+  playlist.value.tracks.forEach(t => {
+    selection.toggleSelection(t.id)
+  })
+}
 </script>
 
 <style scoped>
 .playlist-page { display: flex; flex-direction: column; height: 100%; }
-.header { padding: 24px; background: #fff; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: flex-start; }
+.header { position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid #f0f0f0; }
+.default-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+.batch-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 10; }
+
 .info h2 { margin: 0 0 8px 0; font-size: 24px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .info h2:hover .edit-icon { opacity: 1; }
 .edit-icon { font-size: 16px; color: #999; opacity: 0; transition: opacity 0.2s; }
@@ -189,8 +218,6 @@ async function removePlaylist() {
 button { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: opacity 0.2s; }
 button:hover { opacity: 0.9; }
 button.primary { background: #1890ff; color: #fff; }
-button.secondary { background: #fff; color: #1890ff; border: 1px solid #1890ff; }
-button.secondary:hover { background: #e6f7ff; }
 button.danger { background: #ff4d4f; color: #fff; }
 
 .empty-state { display: flex; justify-content: center; align-items: center; height: 100%; color: #888; }

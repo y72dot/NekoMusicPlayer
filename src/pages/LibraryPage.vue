@@ -1,11 +1,23 @@
 <template>
   <div class="library-page">
     <header class="header">
-      <h2>全部歌曲</h2>
-      <div class="actions">
-        <span class="count">{{ playlists.library.length }} 首歌曲</span>
-        <button class="action-btn" title="播放全部" @click="playAll">▶️</button>
-        <button class="action-btn" title="添加到播放列表" @click="addAllToQueue">➕</button>
+      <div class="default-header">
+        <h2>全部歌曲</h2>
+        <div class="actions">
+          <span class="count">{{ playlists.library.length }} 首歌曲</span>
+        </div>
+      </div>
+      <div class="batch-overlay" v-if="selection.isMultiSelectMode">
+        <BatchActionBar 
+          :count="selection.selectedIds.size"
+          @play="playTrack()"
+          @addToQueue="addToQueue()"
+          @addToPlaylist="addToPlaylist()"
+          @remove="removeTrack()"
+          @cancel="selection.clear()"
+          @selectAll="selectAll()"
+          @invertSelection="invertSelection()"
+        />
       </div>
     </header>
     
@@ -48,6 +60,7 @@ import { useSelectionStore } from '../store/selection'
 import type { Track } from '../models/track'
 import TrackList from '../components/TrackList.vue'
 import ActionMenu from '../components/ActionMenu.vue'
+import BatchActionBar from '../components/BatchActionBar.vue'
 
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
@@ -59,57 +72,46 @@ const selectedTrack = ref<Track | null>(null)
 // If multi-select mode, we might be adding multiple tracks
 const isMultiAdd = computed(() => selectedTrack.value === null && selection.isMultiSelectMode)
 
-function playAll() {
-  if (playlists.library.length > 0) {
-    player.setQueue(playlists.library)
-    player.play()
-  }
-}
-
-function addAllToQueue() {
-  if (playlists.library.length > 0) {
-    playlists.library.forEach(t => player.add(t))
-  }
-}
-
-function playTrack(track: Track) {
-  // If multi-select mode and this track is selected, play all selected
-  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+function playTrack(track?: Track) {
+  // If multi-select mode and this track is selected (or no track passed), play all selected
+  if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     // Filter library tracks that are selected, preserving order
     const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
     if (selectedTracks.length > 0) {
       player.setQueue(selectedTracks)
       player.play()
     }
-  } else {
+  } else if (track) {
     // Normal play (Play Next)
     player.playNext(track)
   }
 }
 
-function addToQueue(track: Track) {
-  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+function addToQueue(track?: Track) {
+  if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
     selectedTracks.forEach(t => player.add(t))
-  } else {
+  } else if (track) {
     player.add(track)
   }
 }
 
-function addToPlaylist(track: Track) {
-  if (selection.isMultiSelectMode && selection.isSelected(track.id)) {
+function addToPlaylist(track?: Track) {
+  if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     selectedTrack.value = null // Signal multi-add
-  } else {
+  } else if (track) {
     selectedTrack.value = track
   }
   showSelector.value = true
 }
 
-async function removeTrack(track: Track) {
-  const tracksToRemove = (selection.isMultiSelectMode && selection.isSelected(track.id))
+async function removeTrack(track?: Track) {
+  const tracksToRemove = (selection.isMultiSelectMode && (!track || selection.isSelected(track.id)))
     ? playlists.library.filter(t => selection.isSelected(t.id))
-    : [track]
+    : (track ? [track] : [])
     
+  if (tracksToRemove.length === 0) return
+
   if (confirm(`确定从库中移除 ${tracksToRemove.length} 首歌曲吗？`)) {
     // Remove all
     for (const t of tracksToRemove) {
@@ -137,16 +139,30 @@ async function confirmAdd(playlistId: string) {
     alert(`已添加 ${tracksToAdd.length} 首歌曲`)
   }
 }
+
+function selectAll() {
+  playlists.library.forEach(t => {
+    if (!selection.isSelected(t.id)) {
+      selection.toggleSelection(t.id)
+    }
+  })
+}
+
+function invertSelection() {
+  playlists.library.forEach(t => {
+    selection.toggleSelection(t.id)
+  })
+}
 </script>
 
 <style scoped>
 .library-page { display: flex; flex-direction: column; height: 100%; }
-.header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #f0f0f0; background: #fff; position: sticky; top: 0; z-index: 5; }
+.header { position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid #f0f0f0; }
+.default-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; height: 100%; box-sizing: border-box; }
+.batch-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 10; }
+
 .header h2 { margin: 0; font-size: 20px; }
-.actions { display: flex; align-items: center; gap: 12px; }
-.action-btn { background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 4px; }
-.action-btn:hover { background: #f0f0f0; }
-.count { color: #888; font-size: 14px; margin-right: 8px; }
+.count { color: #888; font-size: 14px; }
 
 .track-list { flex: 1; overflow-y: auto; }
 .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #eee; }
