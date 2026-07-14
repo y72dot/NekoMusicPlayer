@@ -57,6 +57,7 @@ import { ref, computed } from 'vue'
 import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
 import { useSelectionStore } from '@/store/selection'
+import { useToastStore } from '@/store/toast'
 import type { Track } from '@/models/track'
 import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
@@ -65,6 +66,7 @@ import BatchActionBar from '@/components/BatchActionBar.vue'
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
 const selection = useSelectionStore()
+const toast = useToastStore()
 
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
@@ -136,7 +138,7 @@ async function confirmAdd(playlistId: string) {
     showSelector.value = false
     selectedTrack.value = null
     selection.clear() // Clear selection after add
-    alert(`已添加 ${tracksToAdd.length} 首歌曲`)
+    toast.success(`已添加 ${tracksToAdd.length} 首歌曲`)
   }
 }
 

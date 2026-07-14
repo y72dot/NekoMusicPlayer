@@ -1,10 +1,12 @@
 import { playerEngine } from '@/core/playerEngine'
 import { usePlayerStore } from '@/store/player'
 import { useSettingsStore } from '@/store/settings'
+import { useToastStore } from '@/store/toast'
 
 export function setupPlayerBridge() {
   const player = usePlayerStore()
   const settings = useSettingsStore()
+  const toast = useToastStore()
 
   // Sync Engine -> Store
   playerEngine.on('timeupdate', ({ currentTime, duration }) => {
@@ -15,17 +17,17 @@ export function setupPlayerBridge() {
   playerEngine.on('pause', () => player.setPlaying(false))
 
   playerEngine.on('ended', () => {
-    // Delegate to store action which handles mode logic
     player.onTrackEnded()
   })
 
-  // We could also listen to volumechange if we want two-way binding for volume UI
-  // playerEngine.on('volumechange', (v) => player.setVolume(v)) 
-  // But currently UI calls store.setVolume -> engine.setVolume. 
-  // If engine volume changes internally (unlikely), store might get out of sync. 
-  // For now, this is fine.
+  playerEngine.on('error', () => {
+    toast.error('音频播放出错，请检查文件是否有效')
+  })
 
-  // Initial Sync Store -> Engine
-  // We need to set initial volume.
+  // Two-way volume sync
+  playerEngine.on('volumechange', (v) => {
+    player.setVolume(v)
+  })
+
   playerEngine.setVolume(settings.settings.defaultVolume)
 }

@@ -15,9 +15,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { usePlaylistsStore } from '@/store/playlists'
+import { useToastStore } from '@/store/toast'
 import { registry } from '@/adapters/registry'
 
 const playlists = usePlaylistsStore()
+const toast = useToastStore()
 const urlText = ref('')
 
 async function importUrls() {
@@ -34,7 +36,7 @@ async function importUrls() {
     const tracks = await adapter.resolve(urls)
     await playlists.addToLibrary(tracks)
     urlText.value = ''
-    alert(`已导入 ${tracks.length} 首歌曲到库`)
+    toast.success(`已导入 ${tracks.length} 首歌曲到库`)
   } catch (e) {
     console.error('Failed to resolve URLs:', e)
   }
@@ -56,7 +58,7 @@ async function onFiles(e: Event) {
     await playlists.addToLibrary(tracks)
     // Clear input
     input.value = ''
-    alert(`已导入 ${tracks.length} 首歌曲到库`)
+    toast.success(`已导入 ${tracks.length} 首歌曲到库`)
   } catch (e) {
     console.error('Failed to import files:', e)
   }

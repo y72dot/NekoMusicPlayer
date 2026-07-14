@@ -6,11 +6,13 @@
       <ControlBar class="control-bar" />
     </div>
   </div>
+  <ToastContainer />
 </template>
 
 <script setup lang="ts">
 import SidebarPlaylists from '@/components/SidebarPlaylists.vue'
 import ControlBar from '@/components/ControlBar.vue'
+import ToastContainer from '@/components/ToastContainer.vue'
 </script>
 
 <style>

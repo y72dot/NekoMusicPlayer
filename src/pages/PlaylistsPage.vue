@@ -66,6 +66,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
 import { useSelectionStore } from '@/store/selection'
+import { useToastStore } from '@/store/toast'
 import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
 import BatchActionBar from '@/components/BatchActionBar.vue'
@@ -76,6 +77,7 @@ const router = useRouter()
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
 const selection = useSelectionStore()
+const toast = useToastStore()
 
 const playlistId = computed(() => route.params.id as string)
 const playlist = computed(() => playlists.playlists.find(p => p.id === playlistId.value))
@@ -135,7 +137,7 @@ async function confirmAdd(targetId: string) {
     showSelector.value = false
     selectedTrack.value = null
     selection.clear()
-    alert(`已添加 ${tracksToAdd.length} 首歌曲`)
+    toast.success(`已添加 ${tracksToAdd.length} 首歌曲`)
   }
 }
 
