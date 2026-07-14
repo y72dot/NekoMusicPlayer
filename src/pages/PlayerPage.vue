@@ -2,8 +2,8 @@
   <div class="player-page">
     <header class="header">
       <div class="default-header">
-        <h2>正在播放</h2>
-        <span class="count" v-if="player.queue.length">{{ filtered.length }} / {{ player.queue.length }} 首歌曲</span>
+        <h2>{{ $t('player.title') }}</h2>
+        <span class="count" v-if="player.queue.length">{{ $t('player.songCount', { count: `${filtered.length} / ${player.queue.length}` }) }}</span>
       </div>
       <div class="batch-overlay" v-if="selection.isMultiSelectMode">
         <BatchActionBar 
@@ -31,8 +31,8 @@
       </template>
     </TrackList>
     <div v-if="player.queue.length === 0" class="empty">
-      <p>当前播放队列为空。</p>
-      <p>请从 <router-link to="/library">全部歌曲</router-link> 或歌单中播放音乐。</p>
+      <p>{{ $t('player.emptyQueue') }}</p>
+      <p>{{ $t('player.emptyHint') }}</p>
     </div>
     
     <!-- Playlist Selector Modal -->

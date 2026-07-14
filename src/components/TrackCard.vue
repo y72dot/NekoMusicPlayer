@@ -3,7 +3,7 @@
     <CoverImage :coverUrl="track.coverUrl" :size="64" />
     <div class="meta">
       <div class="title">{{ track.title }}</div>
-      <div class="sub">{{ track.artist || '未知艺术家' }}</div>
+      <div class="sub">{{ track.artist || $t('track.unknownArtist') }}</div>
     </div>
   </div>
 </template>

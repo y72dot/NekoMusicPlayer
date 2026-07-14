@@ -1,0 +1,75 @@
+export default {
+  app: {
+    title: 'Neko Music Player',
+  },
+  nav: {
+    allSongs: 'All Songs',
+    nowPlaying: 'Now Playing',
+    importMusic: 'Import Music',
+  },
+  library: {
+    title: 'All Songs',
+    songCount: '{count} songs',
+    empty: 'No songs yet. Go to Import to add music.',
+  },
+  player: {
+    title: 'Now Playing',
+    songCount: '{count} songs',
+    emptyQueue: 'The play queue is empty.',
+    emptyHint: 'Browse All Songs or a playlist to start playing.',
+  },
+  playlist: {
+    title: 'Playlists',
+    songs: '{count} songs',
+    created: 'Created',
+    playAll: 'Play All',
+    delete: 'Delete Playlist',
+    newPlaylist: 'New Playlist',
+    new: 'New',
+    confirmDelete: 'Delete playlist "{name}"?',
+    empty: 'Select a playlist from the sidebar or create a new one.',
+  },
+  actions: {
+    play: 'Play',
+    addToQueue: 'Add to Queue',
+    addToPlaylist: 'Add to Playlist',
+    remove: 'Remove',
+    cancel: 'Cancel',
+    selectAll: 'Select All',
+    invertSelection: 'Invert',
+  },
+  batch: {
+    selected: '{count} songs selected',
+    cancelSelection: 'Cancel Selection',
+  },
+  search: {
+    placeholder: 'Search songs, artists, albums...',
+  },
+  import: {
+    title: 'Import Music',
+    externalLinks: 'Import External Links',
+    urlPlaceholder: 'One URL per line',
+    importUrls: 'Import',
+    localFiles: 'Import Local Files',
+    jsonTitle: 'Import / Export JSON',
+    exportJson: 'Export All Playlists',
+    success: 'Imported {count} songs to library',
+    failed: 'Import failed',
+  },
+  toast: {
+    added: 'Added {count} songs',
+    removed: 'Removed {count} songs',
+    confirmRemove: 'Remove {count} songs from library?',
+    confirmRemovePlaylist: 'Remove {count} songs from playlist?',
+    playError: 'Audio playback error, please check the file',
+    libraryEmpty: 'Music library is empty, please import songs first',
+  },
+  track: {
+    unknownArtist: 'Unknown Artist',
+  },
+  mode: {
+    single: 'Single Repeat',
+    loop: 'List Loop',
+    shuffle: 'Shuffle',
+  },
+}

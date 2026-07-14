@@ -1,17 +1,17 @@
 <template>
   <div class="batch-action-bar">
     <div class="status">
-      <span class="count">已选择 {{ count }} 首歌曲</span>
-      <button class="text-btn" @click="$emit('selectAll')">全选</button>
-      <button class="text-btn" @click="$emit('invertSelection')">反选</button>
+      <span class="count">{{ $t('batch.selected', { count }) }}</span>
+      <button class="text-btn" @click="$emit('selectAll')">{{ $t('actions.selectAll') }}</button>
+      <button class="text-btn" @click="$emit('invertSelection')">{{ $t('actions.invertSelection') }}</button>
       <span class="divider">|</span>
-      <button class="cancel-btn" @click="$emit('cancel')">取消选择</button>
+      <button class="cancel-btn" @click="$emit('cancel')">{{ $t('batch.cancelSelection') }}</button>
     </div>
     <div class="actions">
-      <button class="action-btn" title="立即播放" @click="$emit('play')">▶️ 播放</button>
-      <button class="action-btn" title="加入队列" @click="$emit('addToQueue')">➕ 加入队列</button>
-      <button class="action-btn" title="添加到歌单" @click="$emit('addToPlaylist')">📥 添加到...</button>
-      <button class="action-btn danger" title="删除" @click="$emit('remove')">🗑️ 删除</button>
+      <button class="action-btn" :title="$t('actions.play')" @click="$emit('play')">▶️ {{ $t('actions.play') }}</button>
+      <button class="action-btn" :title="$t('actions.addToQueue')" @click="$emit('addToQueue')">➕ {{ $t('actions.addToQueue') }}</button>
+      <button class="action-btn" :title="$t('actions.addToPlaylist')" @click="$emit('addToPlaylist')">📥 {{ $t('actions.addToPlaylist') }}</button>
+      <button class="action-btn danger" :title="$t('actions.remove')" @click="$emit('remove')">🗑️ {{ $t('actions.remove') }}</button>
     </div>
   </div>
 </template>

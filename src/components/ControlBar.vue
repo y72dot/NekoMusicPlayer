@@ -6,9 +6,9 @@
     <input type="range" min="0" :max="player.duration" step="0.1" :value="player.currentTime" @input="onSeek" />
     <span>{{ timeText }}</span>
     <select v-model="mode" @change="onMode">
-      <option value="single">单曲循环</option>
-      <option value="loop">列表循环</option>
-      <option value="shuffle">随机</option>
+      <option value="single">{{ $t('mode.single') }}</option>
+      <option value="loop">{{ $t('mode.loop') }}</option>
+      <option value="shuffle">{{ $t('mode.shuffle') }}</option>
     </select>
     <input type="range" min="0" max="1" step="0.01" :value="player.volume" @input="onVolume" />
   </div>

@@ -2,9 +2,9 @@
   <div class="library-page">
     <header class="header">
       <div class="default-header">
-        <h2>全部歌曲</h2>
+        <h2>{{ $t('library.title') }}</h2>
         <div class="actions">
-          <span class="count">{{ filtered.length }} / {{ playlists.library.length }} 首歌曲</span>
+          <span class="count">{{ $t('library.songCount', { count: `${filtered.length} / ${playlists.library.length}` }) }}</span>
         </div>
       </div>
       <div class="batch-overlay" v-if="selection.isMultiSelectMode">
@@ -36,19 +36,19 @@
     </TrackList>
 
     <div v-if="playlists.library.length === 0" class="empty">
-      暂无歌曲，请前往 <router-link to="/import">导入页面</router-link> 添加音乐。
+      {{ $t('library.empty') }}
     </div>
 
     <!-- Simple Playlist Selector Modal -->
     <div v-if="showSelector" class="modal-mask" @click="showSelector = false">
       <div class="modal" @click.stop>
-        <h3>添加到歌单</h3>
+        <h3>{{ $t('actions.addToPlaylist') }}</h3>
         <ul>
           <li v-for="p in playlists.playlists" :key="p.id" @click="confirmAdd(p.id)">
             {{ p.name }}
           </li>
         </ul>
-        <button @click="showSelector = false">取消</button>
+        <button @click="showSelector = false">{{ $t('actions.cancel') }}</button>
       </div>
     </div>
   </div>

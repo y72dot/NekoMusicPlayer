@@ -4,7 +4,7 @@
     <input
       v-model="model"
       type="text"
-      placeholder="搜索歌曲、艺术家、专辑..."
+      :placeholder="$t('search.placeholder')"
       class="input"
       @keyup.escape="clear"
     />

@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from '@/App.vue'
 import router from '@/router'
+import i18n from '@/i18n'
 import { registerAdapters } from '@/adapters/register'
 import { setupPlayerBridge } from '@/services/playerBridge'
 import { usePlaylistsStore } from '@/store/playlists'
@@ -13,6 +14,7 @@ const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 app.use(pinia)
 app.use(router)
+app.use(i18n)
 registerAdapters()
 
 const playlists = usePlaylistsStore(pinia)

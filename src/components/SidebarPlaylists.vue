@@ -1,14 +1,14 @@
 <template>
   <aside class="side">
     <nav class="nav">
-      <router-link to="/library" class="nav-item" active-class="active">🎵 全部歌曲</router-link>
-      <router-link to="/player" class="nav-item" active-class="active">🎧 正在播放</router-link>
-      <router-link to="/import" class="nav-item" active-class="active">📥 导入音乐</router-link>
+      <router-link to="/library" class="nav-item" active-class="active">🎵 {{ $t('nav.allSongs') }}</router-link>
+      <router-link to="/player" class="nav-item" active-class="active">🎧 {{ $t('nav.nowPlaying') }}</router-link>
+      <router-link to="/import" class="nav-item" active-class="active">📥 {{ $t('nav.importMusic') }}</router-link>
     </nav>
     <div class="sep"></div>
     <div class="top">
-      <strong>歌单</strong>
-      <button @click="create">新建</button>
+      <strong>{{ $t('playlist.title') }}</strong>
+      <button @click="create">{{ $t('playlist.new') }}</button>
     </div>
     <ul>
       <li v-for="p in playlists.playlists" :key="p.id" 
@@ -31,7 +31,7 @@ const playlists = usePlaylistsStore()
 
 const currentId = computed(() => route.params.id as string)
 
-async function create() { 
+async function create() {
   const name = prompt('歌单名称') || '新建歌单'
   await playlists.create(name)
   // After create, currentId is updated in store, navigate to it

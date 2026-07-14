@@ -1,0 +1,75 @@
+export default {
+  app: {
+    title: 'Neko Music Player',
+  },
+  nav: {
+    allSongs: '全部歌曲',
+    nowPlaying: '正在播放',
+    importMusic: '导入音乐',
+  },
+  library: {
+    title: '全部歌曲',
+    songCount: '{count} 首歌曲',
+    empty: '暂无歌曲，请前往导入页面添加音乐。',
+  },
+  player: {
+    title: '正在播放',
+    songCount: '{count} 首歌曲',
+    emptyQueue: '当前播放队列为空。',
+    emptyHint: '请从全部歌曲或歌单中播放音乐。',
+  },
+  playlist: {
+    title: '歌单',
+    songs: '{count} 首歌曲',
+    created: '创建于',
+    playAll: '播放全部',
+    delete: '删除歌单',
+    newPlaylist: '新建歌单',
+    new: '新建',
+    confirmDelete: '确定要删除歌单 "{name}" 吗？',
+    empty: '请从左侧选择一个歌单，或新建歌单。',
+  },
+  actions: {
+    play: '立即播放',
+    addToQueue: '加入队列',
+    addToPlaylist: '添加到歌单',
+    remove: '删除',
+    cancel: '取消',
+    selectAll: '全选',
+    invertSelection: '反选',
+  },
+  batch: {
+    selected: '已选择 {count} 首歌曲',
+    cancelSelection: '取消选择',
+  },
+  search: {
+    placeholder: '搜索歌曲、艺术家、专辑...',
+  },
+  import: {
+    title: '导入音乐',
+    externalLinks: '导入外链',
+    urlPlaceholder: '每行一个 URL',
+    importUrls: '导入',
+    localFiles: '导入本地文件',
+    jsonTitle: '导入/导出 JSON',
+    exportJson: '导出当前所有歌单',
+    success: '已导入 {count} 首歌曲到库',
+    failed: '导入失败',
+  },
+  toast: {
+    added: '已添加 {count} 首歌曲',
+    removed: '已移除 {count} 首歌曲',
+    confirmRemove: '确定从库中移除 {count} 首歌曲吗？',
+    confirmRemovePlaylist: '从歌单中移除 {count} 首歌曲？',
+    playError: '音频播放出错，请检查文件是否有效',
+    libraryEmpty: '音乐库为空，请先导入歌曲',
+  },
+  track: {
+    unknownArtist: '未知艺术家',
+  },
+  mode: {
+    single: '单曲循环',
+    loop: '列表循环',
+    shuffle: '随机',
+  },
+}

@@ -16,7 +16,7 @@
       <CoverImage :coverUrl="t.coverUrl" />
       <div class="meta">
         <div class="title" :class="{ 'active-text': player.current?.id === t.id }">{{ t.title }}</div>
-        <div class="sub">{{ t.artist || '未知艺术家' }} · {{ t.sourceId }}</div>
+        <div class="sub">{{ t.artist || $t('track.unknownArtist') }} · {{ t.sourceId }}</div>
       </div>
       <div class="actions" v-if="$slots.actions">
         <slot name="actions" :track="t" :index="i"></slot>

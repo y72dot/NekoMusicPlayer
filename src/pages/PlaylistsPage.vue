@@ -6,7 +6,7 @@
           <h2 v-if="!editing" @click="startEdit">{{ playlist.name }} <span class="edit-icon">✎</span></h2>
           <input v-else v-model="newName" @blur="saveName" @keyup.enter="saveName" ref="nameInput" />
           <div class="meta">
-            <span>{{ filtered.length }} / {{ playlist.tracks.length }} 首歌曲</span>
+            <span>{{ $t('playlist.songs', { count: `${filtered.length} / ${playlist.tracks.length}` }) }}</span>
             <span>·</span>
             <span>创建于 {{ new Date(playlist.createdAt).toLocaleDateString() }}</span>
           </div>
