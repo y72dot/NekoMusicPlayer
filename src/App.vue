@@ -10,28 +10,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
 import { useSelectionStore } from '@/store/selection'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import SidebarPlaylists from '@/components/SidebarPlaylists.vue'
 import ControlBar from '@/components/ControlBar.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 
 const selection = useSelectionStore()
 
+useKeyboardShortcuts()
+
 function exitMultiSelect() {
   if (selection.isMultiSelectMode) {
     selection.clear()
   }
 }
-
-function onKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && selection.isMultiSelectMode) {
-    selection.clear()
-  }
-}
-
-onMounted(() => document.addEventListener('keydown', onKeyDown))
-onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 
 <style>
