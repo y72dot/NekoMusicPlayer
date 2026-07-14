@@ -3,6 +3,7 @@ import type { Track } from '@/models/track'
 import type { PlayMode } from '@/models/settings'
 import { useSettingsStore } from '@/store/settings'
 import { usePlaylistsStore } from '@/store/playlists'
+import { useToastStore } from '@/store/toast'
 import { playerEngine } from '@/core/playerEngine'
 
 export const usePlayerStore = defineStore('player', {
@@ -50,13 +51,18 @@ export const usePlayerStore = defineStore('player', {
       if (track) {
         await playerEngine.load(track)
       } else if (this.current) {
-        // If engine's current track is different from store's current, force load
         if (playerEngine.currentTrack?.id !== this.current.id) {
            await playerEngine.load(this.current)
         }
-        
-        // If paused, play
         if (playerEngine.paused) await playerEngine.play()
+      } else if (this.queue.length === 0) {
+        // Smart Play: queue is empty, try to load from library
+        const playlists = usePlaylistsStore()
+        if (playlists.library.length > 0) {
+          await this.setQueue(playlists.library, 0)
+          await this.play()
+          return
+        }
       }
     },
 
@@ -66,13 +72,14 @@ export const usePlayerStore = defineStore('player', {
 
     async toggle() {
       if (!this.current && this.queue.length === 0) {
-        // Smart Play: if queue is empty, try to load library
         const playlists = usePlaylistsStore()
         if (playlists.library.length > 0) {
           await this.setQueue(playlists.library, 0)
           await this.play()
           return
         }
+        useToastStore().warning('音乐库为空，请先导入歌曲')
+        return
       }
       playerEngine.toggle()
     },
