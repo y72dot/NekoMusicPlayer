@@ -2,11 +2,14 @@ import type { SourceAdapter } from '@/adapters/types'
 import type { Track } from '@/models/track'
 import { setBlob, getBlob } from '@/services/db'
 import { UriResolver } from '@/core/uriResolver'
+import * as mm from 'music-metadata'
+
+const MAX_METADATA_SIZE = 100 * 1024 * 1024 // 100MB
 
 class FileSystemAdapter implements SourceAdapter {
   id = 'fs'
   name = 'File System'
-  
+
   canResolve(input: unknown): boolean {
     if (Array.isArray(input)) return input.every(x => x instanceof File)
     return input instanceof File
@@ -15,12 +18,11 @@ class FileSystemAdapter implements SourceAdapter {
   async resolve(input: unknown): Promise<Track[]> {
     const files = Array.isArray(input) ? input as File[] : [input as File]
     const tracks: Track[] = []
-    
+
     for (const file of files) {
-      // For local files, we use blobId as the resource ID
       const blobId = crypto.randomUUID()
       await setBlob(blobId, file)
-      
+
       const uri = UriResolver.generate(this.id, 'track', blobId, {
         name: file.name,
         type: file.type,
@@ -28,19 +30,47 @@ class FileSystemAdapter implements SourceAdapter {
         lastModified: String(file.lastModified)
       })
 
+      let title = file.name
+      let artist: string | undefined
+      let album: string | undefined
+      let duration: number | undefined
+      let coverUrl: string | undefined
+
+      // Parse ID3 metadata for files under 100MB
+      if (file.size < MAX_METADATA_SIZE) {
+        try {
+          const metadata = await mm.parseBlob(file)
+          const common = metadata.common
+          title = common.title || file.name
+          artist = common.artist
+          album = common.album
+          duration = metadata.format.duration
+
+          // Extract cover art
+          if (common.picture && common.picture.length > 0) {
+            const pic = common.picture[0]
+            const coverBlob = new Blob([pic.data], { type: pic.format })
+            const coverBlobId = `cover:${blobId}`
+            await setBlob(coverBlobId, coverBlob)
+            coverUrl = UriResolver.generate(this.id, 'blob', coverBlobId, { type: 'cover' })
+          }
+        } catch {
+          // Fallback to filename on parse failure
+          title = file.name
+        }
+      }
+
       tracks.push({
-        id: blobId, // Using blobId as track ID for simplicity in this version
+        id: blobId,
         uri,
-        title: file.name,
-        artist: undefined,
-        album: undefined,
-        coverUrl: undefined,
-        duration: undefined,
+        title,
+        artist,
+        album,
+        coverUrl,
+        duration,
         sourceId: this.id,
         sourceRef: { name: file.name, type: file.type, blobId },
-        // We don't store ObjectURL anymore to avoid memory leaks and stale URLs.
-        // It will be generated on demand via load()
-        url: undefined, 
+        url: undefined,
         format: file.type,
       })
     }
@@ -48,7 +78,14 @@ class FileSystemAdapter implements SourceAdapter {
   }
 
   async loadByUri(resourceId: string, params: Record<string, string>): Promise<{ url: string | Blob }> {
-    // resourceId is the blobId in our DB
+    // Handle cover art requests
+    if (params.type === 'cover' || resourceId.startsWith('cover:')) {
+      const blob = await getBlob(resourceId)
+      if (!blob) {
+        throw new Error(`Cover blob not found: ${resourceId}`)
+      }
+      return { url: blob }
+    }
     const blob = await getBlob(resourceId)
     if (!blob) {
       throw new Error(`File blob not found: ${resourceId}`)
