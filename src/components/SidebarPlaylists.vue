@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { usePlaylistsStore } from '../store/playlists'
+import { usePlaylistsStore } from '@/store/playlists'
 
 const router = useRouter()
 const route = useRoute()

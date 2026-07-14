@@ -5,7 +5,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import ImportPanel from '../components/ImportPanel.vue'
+import ImportPanel from '@/components/ImportPanel.vue'
 </script>
 <style scoped>
 .page-content { padding: 24px; max-width: 800px; margin: 0 auto; }

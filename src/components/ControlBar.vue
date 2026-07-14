@@ -15,8 +15,8 @@
 </template>
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { usePlayerStore } from '../store/player'
-import { useSettingsStore } from '../store/settings'
+import { usePlayerStore } from '@/store/player'
+import { useSettingsStore } from '@/store/settings'
 
 const player = usePlayerStore()
 const settings = useSettingsStore()

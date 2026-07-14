@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import type { Track } from '../models/track'
-import type { PlayMode } from '../models/settings'
-import { useSettingsStore } from './settings'
-import { usePlaylistsStore } from './playlists'
-import { playerEngine } from '../core/playerEngine'
+import type { Track } from '@/models/track'
+import type { PlayMode } from '@/models/settings'
+import { useSettingsStore } from '@/store/settings'
+import { usePlaylistsStore } from '@/store/playlists'
+import { playerEngine } from '@/core/playerEngine'
 
 export const usePlayerStore = defineStore('player', {
   state: () => ({

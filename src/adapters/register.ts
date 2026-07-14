@@ -1,6 +1,6 @@
-import { registry } from './registry'
-import { externalLinkAdapter } from './externalLinkAdapter'
-import { fileSystemAdapter } from './fileSystemAdapter'
+import { registry } from '@/adapters/registry'
+import { externalLinkAdapter } from '@/adapters/externalLinkAdapter'
+import { fileSystemAdapter } from '@/adapters/fileSystemAdapter'
 
 export function registerAdapters() {
   registry.register(externalLinkAdapter)

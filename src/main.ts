@@ -1,12 +1,12 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
-import App from './App.vue'
-import router from './router'
-import { registerAdapters } from './adapters/register'
-import { setupPlayerBridge } from './services/playerBridge'
-import { usePlaylistsStore } from './store/playlists'
-import { usePlayerStore } from './store/player'
+import App from '@/App.vue'
+import router from '@/router'
+import { registerAdapters } from '@/adapters/register'
+import { setupPlayerBridge } from '@/services/playerBridge'
+import { usePlaylistsStore } from '@/store/playlists'
+import { usePlayerStore } from '@/store/player'
 
 const app = createApp(App)
 const pinia = createPinia()

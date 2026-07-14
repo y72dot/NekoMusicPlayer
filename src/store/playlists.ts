@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
-import type { Playlist } from '../models/playlist'
-import type { Track } from '../models/track'
-import { getPlaylists, setPlaylists, getCurrentPlaylistId, setCurrentPlaylistId, getLibrary, setLibrary } from '../services/db'
-import { createLogger } from '../services/logger'
+import type { Playlist } from '@/models/playlist'
+import type { Track } from '@/models/track'
+import { getPlaylists, setPlaylists, getCurrentPlaylistId, setCurrentPlaylistId, getLibrary, setLibrary } from '@/services/db'
+import { createLogger } from '@/services/logger'
 
 function now() { return Date.now() }
 const logger = createLogger('Playlists')

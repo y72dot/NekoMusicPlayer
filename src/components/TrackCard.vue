@@ -8,7 +8,7 @@
   </div>
  </template>
  <script setup lang="ts">
- import type { Track } from '../models/track'
+ import type { Track } from '@/models/track'
  defineProps<{ track: Track }>()
  </script>
  <style scoped>

@@ -1,6 +1,6 @@
-import { playerEngine } from '../core/playerEngine'
-import { usePlayerStore } from '../store/player'
-import { useSettingsStore } from '../store/settings'
+import { playerEngine } from '@/core/playerEngine'
+import { usePlayerStore } from '@/store/player'
+import { useSettingsStore } from '@/store/settings'
 
 export function setupPlayerBridge() {
   const player = usePlayerStore()

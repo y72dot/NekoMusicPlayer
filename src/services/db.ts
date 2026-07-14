@@ -1,4 +1,4 @@
-import { createLogger } from './logger'
+import { createLogger } from '@/services/logger'
 const DB_NAME = 'neko-music'
 const DB_VERSION = 3
 const STORE = 'kv'

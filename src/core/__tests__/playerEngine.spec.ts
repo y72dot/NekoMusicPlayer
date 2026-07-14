@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { playerEngine } from '../playerEngine'
-import { UriResolver } from '../uriResolver'
-import type { Track } from '../../models/track'
+import { playerEngine } from '@/core/playerEngine'
+import { UriResolver } from '@/core/uriResolver'
+import type { Track } from '@/models/track'
 
 // Mock registry
-vi.mock('../../adapters/registry', () => ({
+vi.mock('@/adapters/registry', () => ({
   registry: {
     get: vi.fn(),
   }
 }))
 
 // Mock UriResolver
-vi.mock('../uriResolver', () => ({
+vi.mock('@/core/uriResolver', () => ({
   UriResolver: {
     load: vi.fn(),
   }

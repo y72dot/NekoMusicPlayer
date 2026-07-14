@@ -9,8 +9,8 @@
 </template>
 
 <script setup lang="ts">
-import SidebarPlaylists from './components/SidebarPlaylists.vue'
-import ControlBar from './components/ControlBar.vue'
+import SidebarPlaylists from '@/components/SidebarPlaylists.vue'
+import ControlBar from '@/components/ControlBar.vue'
 </script>
 
 <style>

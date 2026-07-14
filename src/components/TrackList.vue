@@ -26,10 +26,10 @@
 </template>
 
 <script setup lang="ts">
-import type { Track } from '../models/track'
-import { usePlaylistsStore } from '../store/playlists'
-import { usePlayerStore } from '../store/player'
-import { useSelectionStore } from '../store/selection'
+import type { Track } from '@/models/track'
+import { usePlaylistsStore } from '@/store/playlists'
+import { usePlayerStore } from '@/store/player'
+import { useSelectionStore } from '@/store/selection'
 
 const props = defineProps<{ tracks: Track[]; playlistId: string }>()
 const emit = defineEmits<{

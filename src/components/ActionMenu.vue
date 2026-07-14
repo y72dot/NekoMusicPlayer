@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useSelectionStore } from '../store/selection'
+import { useSelectionStore } from '@/store/selection'
 
 const props = defineProps<{ trackId: string }>()
 

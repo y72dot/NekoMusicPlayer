@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { PlayMode, Settings } from '../models/settings'
+import type { PlayMode, Settings } from '@/models/settings'
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({

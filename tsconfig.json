@@ -10,7 +10,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "types": ["vite/client", "vitest/globals"]
+    "types": ["vite/client", "vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.tsx"]
 }

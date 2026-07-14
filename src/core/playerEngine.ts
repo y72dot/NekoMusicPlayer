@@ -1,6 +1,6 @@
-import type { Track } from '../models/track'
-import { registry } from '../adapters/registry'
-import { UriResolver } from './uriResolver'
+import type { Track } from '@/models/track'
+import { registry } from '@/adapters/registry'
+import { UriResolver } from '@/core/uriResolver'
 
 type PlayerEvents = {
   timeupdate: { currentTime: number; duration: number }

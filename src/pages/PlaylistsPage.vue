@@ -63,13 +63,13 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { usePlaylistsStore } from '../store/playlists'
-import { usePlayerStore } from '../store/player'
-import { useSelectionStore } from '../store/selection'
-import TrackList from '../components/TrackList.vue'
-import ActionMenu from '../components/ActionMenu.vue'
-import BatchActionBar from '../components/BatchActionBar.vue'
-import type { Track } from '../models/track'
+import { usePlaylistsStore } from '@/store/playlists'
+import { usePlayerStore } from '@/store/player'
+import { useSelectionStore } from '@/store/selection'
+import TrackList from '@/components/TrackList.vue'
+import ActionMenu from '@/components/ActionMenu.vue'
+import BatchActionBar from '@/components/BatchActionBar.vue'
+import type { Track } from '@/models/track'
 
 const route = useRoute()
 const router = useRouter()

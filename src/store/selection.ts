@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Track } from '../models/track'
+import type { Track } from '@/models/track'
 
 export const useSelectionStore = defineStore('selection', {
   state: () => ({

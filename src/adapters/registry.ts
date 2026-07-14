@@ -1,4 +1,4 @@
-import type { AdapterRegistry, SourceAdapter } from './types'
+import type { AdapterRegistry, SourceAdapter } from '@/adapters/types'
 
 class Registry implements AdapterRegistry {
   private map = new Map<string, SourceAdapter>()

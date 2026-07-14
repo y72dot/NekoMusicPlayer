@@ -14,8 +14,8 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
-import { usePlaylistsStore } from '../store/playlists'
-import { registry } from '../adapters/registry'
+import { usePlaylistsStore } from '@/store/playlists'
+import { registry } from '@/adapters/registry'
 
 const playlists = usePlaylistsStore()
 const urlText = ref('')

@@ -51,13 +51,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { usePlayerStore } from '../store/player'
-import { usePlaylistsStore } from '../store/playlists'
-import { useSelectionStore } from '../store/selection'
-import TrackList from '../components/TrackList.vue'
-import ActionMenu from '../components/ActionMenu.vue'
-import BatchActionBar from '../components/BatchActionBar.vue'
-import type { Track } from '../models/track'
+import { usePlayerStore } from '@/store/player'
+import { usePlaylistsStore } from '@/store/playlists'
+import { useSelectionStore } from '@/store/selection'
+import TrackList from '@/components/TrackList.vue'
+import ActionMenu from '@/components/ActionMenu.vue'
+import BatchActionBar from '@/components/BatchActionBar.vue'
+import type { Track } from '@/models/track'
 
 const player = usePlayerStore()
 const playlists = usePlaylistsStore()

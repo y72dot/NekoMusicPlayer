@@ -1,6 +1,6 @@
-import type { SourceAdapter } from './types'
-import type { Track } from '../models/track'
-import { UriResolver } from '../core/uriResolver'
+import type { SourceAdapter } from '@/adapters/types'
+import type { Track } from '@/models/track'
+import { UriResolver } from '@/core/uriResolver'
 
 function toTitle(url: string) {
   try {

@@ -1,4 +1,4 @@
-import { registry } from '../adapters/registry'
+import { registry } from '@/adapters/registry'
 
 export interface ParsedUri {
   sourceId: string

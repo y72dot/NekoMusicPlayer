@@ -1,4 +1,4 @@
-import type { Track } from '../models/track'
+import type { Track } from '@/models/track'
 
 export interface SourceAdapter {
   id: string

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(node:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(npx vitest:*)"
+    ]
+  }
+}

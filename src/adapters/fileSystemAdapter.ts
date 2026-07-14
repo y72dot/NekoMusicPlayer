@@ -1,7 +1,7 @@
-import type { SourceAdapter } from './types'
-import type { Track } from '../models/track'
-import { setBlob, getBlob } from '../services/db'
-import { UriResolver } from '../core/uriResolver'
+import type { SourceAdapter } from '@/adapters/types'
+import type { Track } from '@/models/track'
+import { setBlob, getBlob } from '@/services/db'
+import { UriResolver } from '@/core/uriResolver'
 
 class FileSystemAdapter implements SourceAdapter {
   id = 'fs'
