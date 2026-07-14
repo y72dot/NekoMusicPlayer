@@ -54,6 +54,20 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    proxy: {
+      '/api/netease': {
+        target: 'https://music.163.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/netease/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Referer', 'https://music.163.com')
+          })
+        },
+      },
+    },
+  },
   test: {
     environment: 'happy-dom',
     globals: true,

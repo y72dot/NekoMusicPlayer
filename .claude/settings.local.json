@@ -5,7 +5,9 @@
       "Bash(node:*)",
       "Bash(npx vue-tsc:*)",
       "Bash(npx vitest:*)",
-      "Bash(npx playwright:*)"
+      "Bash(npx playwright:*)",
+      "Bash(npx vite:*)",
+      "WebSearch"
     ]
   }
 }

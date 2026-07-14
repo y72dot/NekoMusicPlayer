@@ -29,6 +29,7 @@ coverage/
 Thumbs.db
 *.swp
 *.tmp
+.claude/
 
 # Playwright
 playwright-report/
@@ -36,3 +37,4 @@ test-results/
 
 # Generated files
 playlists.json
+

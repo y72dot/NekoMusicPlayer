@@ -9,17 +9,33 @@ export class ImportPage extends BasePage {
   readonly jsonFileInput: Locator
   readonly panel: Locator
 
+  // Netease section
+  readonly neteaseTextarea: Locator
+  readonly neteaseTypeSelect: Locator
+  readonly btnImportNetease: Locator
+  readonly cookieWarning: Locator
+  readonly cookieInput: Locator
+  readonly csrfInput: Locator
+  readonly btnSaveCookie: Locator
+
   constructor(page: Page) {
     super(page)
 
     this.panel = page.locator('.panel')
-    this.urlTextarea = this.panel.locator('textarea')
-    // The first button in .panel is "导入" for URLs
-    // First button in .panel (before .json div) is the URL import button
+    this.urlTextarea = this.panel.locator('textarea').nth(0)
     this.btnImportUrl = this.panel.locator('button').first()
     this.fileInput = this.panel.locator('input[type="file"][accept*="audio"]')
     this.btnExport = this.panel.locator('.json button')
     this.jsonFileInput = this.panel.locator('.json input[type="file"]')
+
+    // Netease section
+    this.neteaseTextarea = this.panel.locator('textarea').nth(1)
+    this.neteaseTypeSelect = this.panel.locator('.netease-row select')
+    this.btnImportNetease = this.panel.locator('.netease-row button')
+    this.cookieWarning = this.panel.locator('.cookie-warning')
+    this.cookieInput = this.panel.locator('.cookie-settings input').nth(0)
+    this.csrfInput = this.panel.locator('.cookie-settings input').nth(1)
+    this.btnSaveCookie = this.panel.locator('.cookie-settings button')
   }
 
   async goto() {

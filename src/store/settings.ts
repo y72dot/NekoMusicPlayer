@@ -6,6 +6,8 @@ export const useSettingsStore = defineStore('settings', {
     settings: {
       defaultVolume: 0.8,
       playMode: 'loop' as PlayMode,
+      neteaseCookie: '',
+      neteaseCsrf: '',
     } as Settings,
   }),
   actions: {

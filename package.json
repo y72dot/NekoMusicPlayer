@@ -13,6 +13,8 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "crypto-js": "^4.2.0",
+    "jsbn": "^1.1.0",
     "music-metadata": "^11.13.0",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^4.7.1",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@types/crypto-js": "^4.2.2",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^20.8.3",
