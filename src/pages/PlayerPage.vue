@@ -3,7 +3,7 @@
     <header class="header">
       <div class="default-header">
         <h2>正在播放</h2>
-        <span class="count" v-if="player.queue.length">{{ player.queue.length }} 首歌曲</span>
+        <span class="count" v-if="player.queue.length">{{ filtered.length }} / {{ player.queue.length }} 首歌曲</span>
       </div>
       <div class="batch-overlay" v-if="selection.isMultiSelectMode">
         <BatchActionBar 
@@ -18,7 +18,8 @@
         />
       </div>
     </header>
-    <TrackList :tracks="player.queue" :playlistId="'queue'">
+    <SearchBar v-model="query" />
+    <TrackList :tracks="filtered" :playlistId="'queue'">
       <template #actions="{ track, index }">
         <ActionMenu 
           :trackId="track.id"
@@ -51,13 +52,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { usePlayerStore } from '@/store/player'
 import { usePlaylistsStore } from '@/store/playlists'
 import { useSelectionStore } from '@/store/selection'
 import { useToastStore } from '@/store/toast'
+import { useTrackFilter } from '@/composables/useTrackFilter'
 import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
 import BatchActionBar from '@/components/BatchActionBar.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import type { Track } from '@/models/track'
 
 const player = usePlayerStore()
@@ -65,38 +69,41 @@ const playlists = usePlaylistsStore()
 const selection = useSelectionStore()
 const toast = useToastStore()
 
+const { queue } = storeToRefs(player)
+const { query, filtered } = useTrackFilter(queue)
+
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
 
 function playTrack(index?: number, track?: Track) {
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    // If multi-playing from queue, just play the first selected one?
-    // Or filter queue to only selected? Usually in queue page, play means jump to.
-    // Let's stick to jump to clicked one for now even in multi-select, 
-    // unless we want to "play only selected".
-    // For simplicity: Jump to clicked track or first selected.
     if (track && index !== undefined) {
-      player.setQueue(player.queue, index)
-      player.play()
+      const realIndex = player.queue.findIndex(t => t.id === track.id)
+      if (realIndex >= 0) {
+        player.setQueue(player.queue, realIndex)
+        player.play()
+      }
     } else {
-      // Find first selected
       const firstIndex = player.queue.findIndex(t => selection.isSelected(t.id))
       if (firstIndex >= 0) {
         player.setQueue(player.queue, firstIndex)
         player.play()
       }
     }
-  } else if (index !== undefined) {
-    player.setQueue(player.queue, index)
-    player.play()
+  } else if (index !== undefined && track) {
+    const realIndex = player.queue.findIndex(t => t.id === track.id)
+    if (realIndex >= 0) {
+      player.setQueue(player.queue, realIndex)
+      player.play()
+    }
   }
 }
 
 function addToQueue(track?: Track) {
   // "加入队列" = 移到末尾，不重复
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    const selectedTracks = player.queue.filter(t => selection.isSelected(t.id))
-    selectedTracks.forEach(t => player.add(t)) 
+    const selectedTracks = filtered.value.filter(t => selection.isSelected(t.id))
+    selectedTracks.forEach(t => player.add(t))
   } else if (track) {
     player.add(track)
   }
@@ -116,7 +123,7 @@ async function confirmAdd(targetId: string) {
   if (selectedTrack.value) {
     tracksToAdd = [selectedTrack.value]
   } else if (selection.isMultiSelectMode) {
-    tracksToAdd = player.queue.filter(t => selection.isSelected(t.id))
+    tracksToAdd = filtered.value.filter(t => selection.isSelected(t.id))
   }
 
   if (tracksToAdd.length > 0) {
@@ -148,7 +155,7 @@ function removeTrack(index?: number, track?: Track) {
 }
 
 function selectAll() {
-  player.queue.forEach(t => {
+  filtered.value.forEach(t => {
     if (!selection.isSelected(t.id)) {
       selection.toggleSelection(t.id)
     }
@@ -156,7 +163,7 @@ function selectAll() {
 }
 
 function invertSelection() {
-  player.queue.forEach(t => {
+  filtered.value.forEach(t => {
     selection.toggleSelection(t.id)
   })
 }

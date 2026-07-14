@@ -6,7 +6,7 @@
           <h2 v-if="!editing" @click="startEdit">{{ playlist.name }} <span class="edit-icon">✎</span></h2>
           <input v-else v-model="newName" @blur="saveName" @keyup.enter="saveName" ref="nameInput" />
           <div class="meta">
-            <span>{{ playlist.tracks.length }} 首歌曲</span>
+            <span>{{ filtered.length }} / {{ playlist.tracks.length }} 首歌曲</span>
             <span>·</span>
             <span>创建于 {{ new Date(playlist.createdAt).toLocaleDateString() }}</span>
           </div>
@@ -29,8 +29,10 @@
         />
       </div>
     </header>
-    
-    <TrackList :tracks="playlist.tracks" :playlistId="playlist.id">
+
+    <SearchBar v-model="query" />
+
+    <TrackList :tracks="filtered" :playlistId="playlist.id">
       <template #actions="{ track, index }">
         <ActionMenu 
           :trackId="track.id"
@@ -67,9 +69,11 @@ import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
 import { useSelectionStore } from '@/store/selection'
 import { useToastStore } from '@/store/toast'
+import { useTrackFilter } from '@/composables/useTrackFilter'
 import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
 import BatchActionBar from '@/components/BatchActionBar.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import type { Track } from '@/models/track'
 
 const route = useRoute()
@@ -81,6 +85,9 @@ const toast = useToastStore()
 
 const playlistId = computed(() => route.params.id as string)
 const playlist = computed(() => playlists.playlists.find(p => p.id === playlistId.value))
+
+const playlistTracks = computed(() => playlist.value?.tracks ?? [])
+const { query, filtered } = useTrackFilter(playlistTracks)
 
 const editing = ref(false)
 const newName = ref('')
@@ -94,9 +101,9 @@ watch(playlist, (p) => {
 
 function playTrack(index?: number, track?: Track) {
   if (!playlist.value) return
-  
+
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    const selectedTracks = playlist.value.tracks.filter(t => selection.isSelected(t.id))
+    const selectedTracks = filtered.value.filter(t => selection.isSelected(t.id))
     if (selectedTracks.length > 0) {
       player.setQueue(selectedTracks)
       player.play()
@@ -108,7 +115,7 @@ function playTrack(index?: number, track?: Track) {
 
 function addToQueue(track?: Track) {
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    const selectedTracks = playlist.value?.tracks.filter(t => selection.isSelected(t.id)) || []
+    const selectedTracks = filtered.value.filter(t => selection.isSelected(t.id))
     selectedTracks.forEach(t => player.add(t))
   } else if (track) {
     player.add(track)
@@ -129,7 +136,7 @@ async function confirmAdd(targetId: string) {
   if (selectedTrack.value) {
     tracksToAdd = [selectedTrack.value]
   } else if (selection.isMultiSelectMode && playlist.value) {
-    tracksToAdd = playlist.value.tracks.filter(t => selection.isSelected(t.id))
+    tracksToAdd = filtered.value.filter(t => selection.isSelected(t.id))
   }
 
   if (tracksToAdd.length > 0) {
@@ -143,9 +150,9 @@ async function confirmAdd(targetId: string) {
 
 async function removeTrack(index?: number, track?: Track) {
   if (!playlist.value) return
-  
+
   const tracksToRemove = (selection.isMultiSelectMode && (!track || selection.isSelected(track.id)))
-    ? playlist.value.tracks.filter(t => selection.isSelected(t.id))
+    ? filtered.value.filter(t => selection.isSelected(t.id))
     : (track ? [track] : [])
 
   if (tracksToRemove.length === 0) return
@@ -189,7 +196,7 @@ async function removePlaylist() {
 
 function selectAll() {
   if (!playlist.value) return
-  playlist.value.tracks.forEach(t => {
+  filtered.value.forEach(t => {
     if (!selection.isSelected(t.id)) {
       selection.toggleSelection(t.id)
     }
@@ -198,7 +205,7 @@ function selectAll() {
 
 function invertSelection() {
   if (!playlist.value) return
-  playlist.value.tracks.forEach(t => {
+  filtered.value.forEach(t => {
     selection.toggleSelection(t.id)
   })
 }

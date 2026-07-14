@@ -4,11 +4,11 @@
       <div class="default-header">
         <h2>全部歌曲</h2>
         <div class="actions">
-          <span class="count">{{ playlists.library.length }} 首歌曲</span>
+          <span class="count">{{ filtered.length }} / {{ playlists.library.length }} 首歌曲</span>
         </div>
       </div>
       <div class="batch-overlay" v-if="selection.isMultiSelectMode">
-        <BatchActionBar 
+        <BatchActionBar
           :count="selection.selectedIds.size"
           @play="playTrack()"
           @addToQueue="addToQueue()"
@@ -20,10 +20,12 @@
         />
       </div>
     </header>
-    
-    <TrackList :tracks="playlists.library" :playlistId="'library'">
+
+    <SearchBar v-model="query" />
+
+    <TrackList :tracks="filtered" :playlistId="'library'">
       <template #actions="{ track }">
-        <ActionMenu 
+        <ActionMenu
           :trackId="track.id"
           @play="playTrack(track)"
           @addToQueue="addToQueue(track)"
@@ -54,44 +56,44 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
 import { useSelectionStore } from '@/store/selection'
 import { useToastStore } from '@/store/toast'
+import { useTrackFilter } from '@/composables/useTrackFilter'
 import type { Track } from '@/models/track'
 import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
 import BatchActionBar from '@/components/BatchActionBar.vue'
+import SearchBar from '@/components/SearchBar.vue'
 
 const playlists = usePlaylistsStore()
 const player = usePlayerStore()
 const selection = useSelectionStore()
 const toast = useToastStore()
 
+const { library } = storeToRefs(playlists)
+const { query, filtered } = useTrackFilter(library)
+
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
 
-// If multi-select mode, we might be adding multiple tracks
-const isMultiAdd = computed(() => selectedTrack.value === null && selection.isMultiSelectMode)
-
 function playTrack(track?: Track) {
-  // If multi-select mode and this track is selected (or no track passed), play all selected
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    // Filter library tracks that are selected, preserving order
-    const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
+    const selectedTracks = filtered.value.filter(t => selection.isSelected(t.id))
     if (selectedTracks.length > 0) {
       player.setQueue(selectedTracks)
       player.play()
     }
   } else if (track) {
-    // Normal play (Play Next)
     player.playNext(track)
   }
 }
 
 function addToQueue(track?: Track) {
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    const selectedTracks = playlists.library.filter(t => selection.isSelected(t.id))
+    const selectedTracks = filtered.value.filter(t => selection.isSelected(t.id))
     selectedTracks.forEach(t => player.add(t))
   } else if (track) {
     player.add(track)
@@ -100,7 +102,7 @@ function addToQueue(track?: Track) {
 
 function addToPlaylist(track?: Track) {
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
-    selectedTrack.value = null // Signal multi-add
+    selectedTrack.value = null
   } else if (track) {
     selectedTrack.value = track
   }
@@ -109,13 +111,12 @@ function addToPlaylist(track?: Track) {
 
 async function removeTrack(track?: Track) {
   const tracksToRemove = (selection.isMultiSelectMode && (!track || selection.isSelected(track.id)))
-    ? playlists.library.filter(t => selection.isSelected(t.id))
+    ? filtered.value.filter(t => selection.isSelected(t.id))
     : (track ? [track] : [])
-    
+
   if (tracksToRemove.length === 0) return
 
   if (confirm(`确定从库中移除 ${tracksToRemove.length} 首歌曲吗？`)) {
-    // Remove all
     for (const t of tracksToRemove) {
       const idx = playlists.library.findIndex(x => x.id === t.id)
       if (idx >= 0) playlists.library.splice(idx, 1)
@@ -130,20 +131,20 @@ async function confirmAdd(playlistId: string) {
   if (selectedTrack.value) {
     tracksToAdd = [selectedTrack.value]
   } else if (selection.isMultiSelectMode) {
-    tracksToAdd = playlists.library.filter(t => selection.isSelected(t.id))
+    tracksToAdd = filtered.value.filter(t => selection.isSelected(t.id))
   }
-  
+
   if (tracksToAdd.length > 0) {
     await playlists.addTracks(playlistId, tracksToAdd)
     showSelector.value = false
     selectedTrack.value = null
-    selection.clear() // Clear selection after add
+    selection.clear()
     toast.success(`已添加 ${tracksToAdd.length} 首歌曲`)
   }
 }
 
 function selectAll() {
-  playlists.library.forEach(t => {
+  filtered.value.forEach(t => {
     if (!selection.isSelected(t.id)) {
       selection.toggleSelection(t.id)
     }
@@ -151,7 +152,7 @@ function selectAll() {
 }
 
 function invertSelection() {
-  playlists.library.forEach(t => {
+  filtered.value.forEach(t => {
     selection.toggleSelection(t.id)
   })
 }
