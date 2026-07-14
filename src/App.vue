@@ -1,8 +1,8 @@
 <template>
-  <div class="layout">
+  <div class="layout" @click.self="exitMultiSelect">
     <SidebarPlaylists class="sidebar" />
-    <div class="main-col">
-      <router-view class="content" />
+    <div class="main-col" @click.self="exitMultiSelect">
+      <router-view class="content" @click.self="exitMultiSelect" />
       <ControlBar class="control-bar" />
     </div>
   </div>
@@ -10,9 +10,28 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+import { useSelectionStore } from '@/store/selection'
 import SidebarPlaylists from '@/components/SidebarPlaylists.vue'
 import ControlBar from '@/components/ControlBar.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
+
+const selection = useSelectionStore()
+
+function exitMultiSelect() {
+  if (selection.isMultiSelectMode) {
+    selection.clear()
+  }
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && selection.isMultiSelectMode) {
+    selection.clear()
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', onKeyDown))
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 
 <style>

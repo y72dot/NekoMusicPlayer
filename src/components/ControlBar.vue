@@ -21,15 +21,7 @@ import { useSettingsStore } from '@/store/settings'
 const player = usePlayerStore()
 const settings = useSettingsStore()
 const mode = computed({ get: () => player.mode, set: v => settings.setMode(v) })
-// Watcher for settings mode is no longer needed to update Engine, 
-// because Store state updates (via settings.setMode) update PlayerStore mode, 
-// and Engine doesn't track mode anymore.
-// However, PlayerStore.mode is derived from settings store in `state`.
-// But `setMode` action in PlayerStore updates local state AND settings?
-// Let's check PlayerStore.setMode -> updates `this.mode`.
-// SettingsStore.setMode -> updates settings.
-// In ControlBar, we should use SettingsStore for persistence.
-// Let's simplify: ControlBar interacts with PlayerStore/SettingsStore.
+// Mode is managed via SettingsStore for persistence, PlayerStore for playback logic.
 
 function toggle() { player.toggle() }
 function next() { player.next() }

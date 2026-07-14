@@ -93,19 +93,7 @@ function playTrack(index?: number, track?: Track) {
 }
 
 function addToQueue(track?: Track) {
-  // In PlayerPage, Add to Queue usually means duplicate.
-  // We removed crypto.randomUUID() for Library/Playlist to avoid duplicates.
-  // But here, if user explicitly adds from queue to queue, maybe duplicate is intended?
-  // Let's keep duplicate logic but use player.add which now handles duplicates by moving or ignoring.
-  // If we want REAL duplicate, we need new ID. 
-  // But previous fix removed randomUUID to fix "Library Add -> Queue Duplicate".
-  // Here we are in Queue Page. "Add to Queue" button in Queue Page is weird.
-  // Usually it means "Duplicate this track".
-  // If we want duplicate, we MUST provide new ID.
-  // So for Queue Page specifically, let's keep randomUUID if we want duplication.
-  // BUT, user complained about duplicates.
-  // Let's assume "Add to Queue" in Queue Page is "Move to End" (re-queue).
-  // So NO randomUUID.
+  // "加入队列" = 移到末尾，不重复
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
     const selectedTracks = player.queue.filter(t => selection.isSelected(t.id))
     selectedTracks.forEach(t => player.add(t)) 
