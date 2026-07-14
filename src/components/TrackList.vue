@@ -13,7 +13,7 @@
         <span v-else-if="selection.isSelected(t.id)">☑️</span>
         <span v-else>{{ i+1 }}</span>
       </span>
-      <img v-if="t.coverUrl" :src="t.coverUrl" class="cover" />
+      <CoverImage :coverUrl="t.coverUrl" />
       <div class="meta">
         <div class="title" :class="{ 'active-text': player.current?.id === t.id }">{{ t.title }}</div>
         <div class="sub">{{ t.artist || '未知艺术家' }} · {{ t.sourceId }}</div>
@@ -30,6 +30,7 @@ import type { Track } from '@/models/track'
 import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
 import { useSelectionStore } from '@/store/selection'
+import CoverImage from '@/components/CoverImage.vue'
 
 const props = defineProps<{ tracks: Track[]; playlistId: string }>()
 const emit = defineEmits<{
@@ -82,7 +83,6 @@ async function play(i: number) {
 .row.selected { background-color: #f0f0f0; }
 .row.selected.active { background-color: #d6e4ff; } /* Selected AND playing */
 .index { width:24px; color:#888; display: flex; justify-content: center; }
-.cover { width:40px; height:40px; object-fit:cover; border-radius:4px }
 .meta { display:flex; flex-direction:column }
 .title { font-weight:600 }
 .title.active-text { color: #1890ff; }
