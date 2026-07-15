@@ -81,6 +81,11 @@ export const usePlayerStore = defineStore('player', {
         useToastStore().warning('音乐库为空，请先导入歌曲')
         return
       }
+      // If engine doesn't have the current track (e.g. after refresh), load and play
+      if (this.current && playerEngine.currentTrack?.id !== this.current.id) {
+        await this.play()
+        return
+      }
       playerEngine.toggle()
     },
     

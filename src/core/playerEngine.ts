@@ -82,13 +82,14 @@ class PlayerEngineImpl extends EventEmitter {
   }
 
   async load(track: Track) {
-    this._track = { ...track }
+    this._track = undefined
     let src: string | Blob | undefined
 
     if (track.uri) {
       try {
         const result = await UriResolver.load(track.uri)
         src = result.url
+        this._track = { ...track }
 
         // Merge metadata from adapter into track
         if (result.metadata) {
@@ -133,6 +134,9 @@ class PlayerEngineImpl extends EventEmitter {
       this.audio.removeAttribute('src')
       console.warn('No playable source found for track', track.title)
     }
+
+    // Avoid calling audio.load() with no source — it would trigger a native error event
+    if (!this._track && !src) return
 
     this.audio.load()
   }
