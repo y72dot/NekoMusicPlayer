@@ -4,6 +4,7 @@ import type { NeteaseSong } from '@/models/netease'
 import { UriResolver } from '@/core/uriResolver'
 import { NeteaseClient } from '@/services/neteaseClient'
 import { useSettingsStore } from '@/store/settings'
+import { audioCache } from '@/services/audioCache'
 import * as mm from 'music-metadata'
 
 const NETBASE_URL_PATTERN = /music\.163\.com/
@@ -119,6 +120,13 @@ class NeteaseAdapter implements SourceAdapter {
     const client = new NeteaseClient()
     const quality = params.quality || 'standard'
 
+    // Check cache first
+    const cacheKey = UriResolver.generate(this.id, 'track', resourceId, params)
+    const cached = await audioCache.get(cacheKey)
+    if (cached) {
+      return { url: cached }
+    }
+
     const result = await client.getSongUrl(resourceId, quality)
     if (result.code !== 200 || !result.data?.length) {
       throw new Error(`Failed to get playback URL (ID: ${resourceId})`)
@@ -137,7 +145,6 @@ class NeteaseAdapter implements SourceAdapter {
         return { url: songUrl }
       }
       const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
 
       let metadata: LoadByUriMetadata | undefined
       try {
@@ -156,7 +163,7 @@ class NeteaseAdapter implements SourceAdapter {
         // Metadata parsing failed, audio still playable
       }
 
-      return { url: objectUrl, metadata }
+      return { url: blob, metadata }
     } catch {
       // Fallback: return URL directly
       return { url: songUrl }

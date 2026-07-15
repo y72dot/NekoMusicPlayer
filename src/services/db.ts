@@ -189,6 +189,17 @@ export async function setBlob(key: string, blob: Blob) {
   })
 }
 
+export async function deleteBlob(key: string): Promise<void> {
+  const db = await openDb()
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(BLOB_STORE, 'readwrite')
+    const store = tx.objectStore(BLOB_STORE)
+    store.delete(key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 export async function getBlob(key: string): Promise<Blob | undefined> {
   const db = await openDb()
   return new Promise<Blob | undefined>((resolve, reject) => {

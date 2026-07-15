@@ -3,6 +3,7 @@ import type { Track } from '@/models/track'
 import { UriResolver } from '@/core/uriResolver'
 import { BilibiliClient } from '@/services/bilibiliClient'
 import { useSettingsStore } from '@/store/settings'
+import { audioCache } from '@/services/audioCache'
 import * as mm from 'music-metadata'
 
 const BILIBILI_URL_PATTERN = /bilibili\.com\/video\/([a-zA-Z0-9]+)/
@@ -194,6 +195,13 @@ class BilibiliAdapter implements SourceAdapter {
     const cid = params.cid || '0'
     const quality = QUALITY_MAP[params.quality || 'standard'] || QUALITY_MAP['low']
     const settings = useSettingsStore()
+
+    // Check cache first
+    const cacheKey = UriResolver.generate(this.id, 'track', resourceId, params)
+    const cached = await audioCache.get(cacheKey)
+    if (cached) {
+      return { url: cached }
+    }
 
     // Use standard quality only if cookie is available
     const effectiveQuality = settings.settings.bilibiliSessdata ? quality : QUALITY_MAP['low']

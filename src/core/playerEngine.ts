@@ -1,6 +1,8 @@
 import type { Track } from '@/models/track'
 import { registry } from '@/adapters/registry'
 import { UriResolver } from '@/core/uriResolver'
+import { audioCache } from '@/services/audioCache'
+import { useToastStore } from '@/store/toast'
 
 type PlayerEvents = {
   timeupdate: { currentTime: number; duration: number }
@@ -102,6 +104,8 @@ class PlayerEngineImpl extends EventEmitter {
         }
       } catch (e) {
         console.warn('Failed to load via URI', e)
+        const toast = useToastStore()
+        toast.error('Failed to load audio: ' + (e instanceof Error ? e.message : String(e)))
       }
     } else {
       console.error('Track missing URI, cannot load', track)
@@ -111,6 +115,11 @@ class PlayerEngineImpl extends EventEmitter {
     if (this.currentObjectUrl) {
       URL.revokeObjectURL(this.currentObjectUrl)
       this.currentObjectUrl = undefined
+    }
+
+    // Cache Blob for future playback (skip fs tracks, already stored by adapter)
+    if (src instanceof Blob && track.uri && track.sourceId !== 'fs') {
+      audioCache.set(track.uri, src, track.sourceId).catch(() => {})
     }
 
     // Set new source
