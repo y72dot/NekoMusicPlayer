@@ -1,9 +1,10 @@
-import type { SourceAdapter } from '@/adapters/types'
+import type { SourceAdapter, LoadByUriMetadata } from '@/adapters/types'
 import type { Track } from '@/models/track'
 import type { NeteaseSong } from '@/models/netease'
 import { UriResolver } from '@/core/uriResolver'
 import { NeteaseClient } from '@/services/neteaseClient'
 import { useSettingsStore } from '@/store/settings'
+import * as mm from 'music-metadata'
 
 const NETBASE_URL_PATTERN = /music\.163\.com/
 const SONG_ID_PATTERN = /^\d{4,}$/
@@ -109,7 +110,7 @@ class NeteaseAdapter implements SourceAdapter {
   async loadByUri(
     resourceId: string,
     params: Record<string, string>,
-  ): Promise<{ url: string | Blob }> {
+  ): Promise<{ url: string | Blob; metadata?: LoadByUriMetadata }> {
     const settings = useSettingsStore()
     if (!settings.settings.neteaseCookie) {
       throw new Error('Please configure NetEase Cookie first')
@@ -128,7 +129,38 @@ class NeteaseAdapter implements SourceAdapter {
       throw new Error('Song unavailable due to copyright restrictions')
     }
 
-    return { url: songUrl }
+    // Fetch as blob and parse metadata
+    try {
+      const response = await fetch(songUrl)
+      if (!response.ok) {
+        // Fallback: return URL directly if fetch fails
+        return { url: songUrl }
+      }
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+
+      let metadata: LoadByUriMetadata | undefined
+      try {
+        const meta = await mm.parseBlob(blob)
+        const fmt = meta.format
+        metadata = {
+          sampleRate: fmt.sampleRate,
+          bitrate: fmt.bitrate,
+          bitDepth: fmt.bitsPerSample,
+          channels: fmt.numberOfChannels,
+          codec: fmt.codec,
+          container: fmt.container,
+          lossless: fmt.lossless,
+        }
+      } catch {
+        // Metadata parsing failed, audio still playable
+      }
+
+      return { url: objectUrl, metadata }
+    } catch {
+      // Fallback: return URL directly
+      return { url: songUrl }
+    }
   }
 
   private mapSongToTrack(song: NeteaseSong): Track {

@@ -1,4 +1,5 @@
 import { registry } from '@/adapters/registry'
+import type { LoadByUriMetadata } from '@/adapters/types'
 
 export interface ParsedUri {
   sourceId: string
@@ -53,7 +54,7 @@ export class UriResolver {
   /**
    * Resolve a URI to a playable URL or Blob
    */
-  static async load(uri: string): Promise<{ url: string | Blob }> {
+  static async load(uri: string): Promise<{ url: string | Blob; metadata?: LoadByUriMetadata }> {
     const { sourceId, resourceId, params } = this.parse(uri)
     const adapter = registry.get(sourceId)
 

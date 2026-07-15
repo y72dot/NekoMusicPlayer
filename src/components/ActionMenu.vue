@@ -6,6 +6,7 @@
       
       <!-- Hidden buttons container -->
       <div class="hidden-wrapper">
+        <button class="action-btn" title="详情" @click.stop="handleAction('details')">🔍</button>
         <button class="action-btn" title="添加到歌单" @click.stop="handleAction('addToPlaylist')">📥</button>
         <button class="action-btn danger" title="删除" @click.stop="handleAction('remove')">🗑️</button>
       </div>
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   (e: 'addToQueue'): void
   (e: 'addToPlaylist'): void
   (e: 'remove'): void
+  (e: 'details'): void
 }>()
 
 const selection = useSelectionStore()
@@ -77,11 +79,11 @@ function toggleSelect() {
   }
 }
 
-function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove') {
-  // If in multi-select mode and this item is selected, 
+function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove' | 'details') {
+  // If in multi-select mode and this item is selected,
   // the parent component should handle the action for ALL selected items.
   // We just emit the event, and parent checks selection store.
-  emit(event)
+  ;(emit as any)(event)
   if (!isSelected.value) {
     localExpanded.value = false
   }
@@ -103,7 +105,7 @@ function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove')
 }
 
 .action-menu.expanded {
-  width: 180px; /* Increased for the new toggle button (6 * 30px) */
+  width: 210px;
   background: #f0f0f0;
 }
 
@@ -149,7 +151,7 @@ function handleAction(event: 'play' | 'addToQueue' | 'addToPlaylist' | 'remove')
 }
 
 .action-menu.expanded .hidden-wrapper {
-  width: 60px; /* 2 buttons * 30px */
+  width: 90px; /* 3 buttons * 30px */
   opacity: 1;
 }
 

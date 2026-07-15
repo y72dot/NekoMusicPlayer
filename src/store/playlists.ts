@@ -20,6 +20,14 @@ function sanitizeTracks(tracks: Track[]): Track[] {
     sourceRef: t.sourceRef,
     url: typeof t.url === 'string' && t.url.startsWith('blob:') ? undefined : t.url,
     format: t.format,
+    sampleRate: t.sampleRate,
+    bitDepth: t.bitDepth,
+    bitrate: t.bitrate,
+    channels: t.channels,
+    codec: t.codec,
+    container: t.container,
+    lossless: t.lossless,
+    fileSize: t.fileSize,
   }))
 }
 
@@ -119,6 +127,22 @@ export const usePlaylistsStore = defineStore('playlists', {
       await setCurrentPlaylistId(this.currentId)
     },
     
+    updateTrack(track: Track) {
+      // Update in library
+      const libIdx = this.library.findIndex(t => t.id === track.id)
+      if (libIdx >= 0) {
+        this.library[libIdx] = { ...this.library[libIdx], ...track }
+      }
+      // Update in all playlists
+      for (const p of this.playlists) {
+        const idx = p.tracks.findIndex(t => t.id === track.id)
+        if (idx >= 0) {
+          p.tracks[idx] = { ...p.tracks[idx], ...track }
+        }
+      }
+      this.persist()
+    },
+
     async addToLibrary(tracks: Track[]) {
       const exists = new Set(this.library.map(t => t.uri || `${t.sourceId}:${JSON.stringify(t.sourceRef)}`))
       let added = false

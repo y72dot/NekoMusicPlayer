@@ -172,6 +172,13 @@ export const usePlayerStore = defineStore('player', {
       }
     },
 
+    updateTrack(track: Track) {
+      const idx = this.queue.findIndex(t => t.id === track.id)
+      if (idx >= 0) {
+        this.queue[idx] = { ...this.queue[idx], ...track }
+      }
+    },
+
     add(track: Track) {
       // Check if exists
       const existingIndex = this.queue.findIndex(t => t.id === track.id)

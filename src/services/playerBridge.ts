@@ -1,10 +1,12 @@
 import { playerEngine } from '@/core/playerEngine'
 import { usePlayerStore } from '@/store/player'
+import { usePlaylistsStore } from '@/store/playlists'
 import { useSettingsStore } from '@/store/settings'
 import { useToastStore } from '@/store/toast'
 
 export function setupPlayerBridge() {
   const player = usePlayerStore()
+  const playlists = usePlaylistsStore()
   const settings = useSettingsStore()
   const toast = useToastStore()
 
@@ -22,6 +24,12 @@ export function setupPlayerBridge() {
 
   playerEngine.on('error', () => {
     toast.error('音频播放出错，请检查文件是否有效')
+  })
+
+  // Sync enriched track metadata to stores
+  playerEngine.on('trackenriched', (track) => {
+    player.updateTrack(track)
+    playlists.updateTrack(track)
   })
 
   // Two-way volume sync

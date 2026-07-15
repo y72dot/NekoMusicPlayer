@@ -35,16 +35,31 @@ class FileSystemAdapter implements SourceAdapter {
       let album: string | undefined
       let duration: number | undefined
       let coverUrl: string | undefined
+      let sampleRate: number | undefined
+      let bitDepth: number | undefined
+      let bitrate: number | undefined
+      let channels: number | undefined
+      let codec: string | undefined
+      let container: string | undefined
+      let lossless: boolean | undefined
 
       // Parse ID3 metadata for files under 100MB
       if (file.size < MAX_METADATA_SIZE) {
         try {
           const metadata = await mm.parseBlob(file)
           const common = metadata.common
+          const fmt = metadata.format
           title = common.title || file.name
           artist = common.artist
           album = common.album
-          duration = metadata.format.duration
+          duration = fmt.duration
+          sampleRate = fmt.sampleRate
+          bitDepth = fmt.bitsPerSample
+          bitrate = fmt.bitrate
+          channels = fmt.numberOfChannels
+          codec = fmt.codec
+          container = fmt.container
+          lossless = fmt.lossless
 
           // Extract cover art
           if (common.picture && common.picture.length > 0) {
@@ -72,6 +87,14 @@ class FileSystemAdapter implements SourceAdapter {
         sourceRef: { name: file.name, type: file.type, blobId },
         url: undefined,
         format: file.type,
+        sampleRate,
+        bitDepth,
+        bitrate,
+        channels,
+        codec,
+        container,
+        lossless,
+        fileSize: file.size,
       })
     }
     return tracks

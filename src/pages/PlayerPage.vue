@@ -21,12 +21,13 @@
     <SearchBar v-model="query" />
     <TrackList :tracks="filtered" :playlistId="'queue'">
       <template #actions="{ track, index }">
-        <ActionMenu 
+        <ActionMenu
           :trackId="track.id"
           @play="playTrack(index, track)"
           @addToQueue="addToQueue(track)"
           @addToPlaylist="addToPlaylist(track)"
           @remove="removeTrack(index, track)"
+          @details="showDetails(track)"
         />
       </template>
     </TrackList>
@@ -35,6 +36,9 @@
       <p>{{ $t('player.emptyHint') }}</p>
     </div>
     
+    <!-- Track Detail Modal -->
+    <TrackDetailModal :track="detailTrack" @close="detailTrack = null" />
+
     <!-- Playlist Selector Modal -->
     <div v-if="showSelector" class="modal-mask" @click="showSelector = false">
       <div class="modal" @click.stop>
@@ -62,6 +66,7 @@ import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
 import BatchActionBar from '@/components/BatchActionBar.vue'
 import SearchBar from '@/components/SearchBar.vue'
+import TrackDetailModal from '@/components/TrackDetailModal.vue'
 import type { Track } from '@/models/track'
 
 const player = usePlayerStore()
@@ -74,6 +79,7 @@ const { query, filtered } = useTrackFilter(queue)
 
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
+const detailTrack = ref<Track | null>(null)
 
 function playTrack(index?: number, track?: Track) {
   if (selection.isMultiSelectMode && (!track || selection.isSelected(track.id))) {
@@ -166,6 +172,10 @@ function invertSelection() {
   filtered.value.forEach(t => {
     selection.toggleSelection(t.id)
   })
+}
+
+function showDetails(track: Track) {
+  detailTrack.value = track
 }
 </script>
 

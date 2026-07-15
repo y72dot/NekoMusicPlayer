@@ -18,4 +18,12 @@ export interface Track {
   sourceRef: unknown
   url?: string
   format?: string
+  sampleRate?: number
+  bitDepth?: number
+  bitrate?: number
+  channels?: number
+  codec?: string
+  container?: string
+  lossless?: boolean
+  fileSize?: number
 }

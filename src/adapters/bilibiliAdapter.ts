@@ -1,8 +1,9 @@
-import type { SourceAdapter } from '@/adapters/types'
+import type { SourceAdapter, LoadByUriMetadata } from '@/adapters/types'
 import type { Track } from '@/models/track'
 import { UriResolver } from '@/core/uriResolver'
 import { BilibiliClient } from '@/services/bilibiliClient'
 import { useSettingsStore } from '@/store/settings'
+import * as mm from 'music-metadata'
 
 const BILIBILI_URL_PATTERN = /bilibili\.com\/video\/([a-zA-Z0-9]+)/
 const BV_PATTERN = /^BV[a-zA-Z0-9]{10}$/
@@ -188,7 +189,7 @@ class BilibiliAdapter implements SourceAdapter {
   async loadByUri(
     resourceId: string,
     params: Record<string, string>,
-  ): Promise<{ url: string | Blob }> {
+  ): Promise<{ url: string | Blob; metadata?: LoadByUriMetadata }> {
     const client = new BilibiliClient()
     const cid = params.cid || '0'
     const quality = QUALITY_MAP[params.quality || 'standard'] || QUALITY_MAP['low']
@@ -207,7 +208,17 @@ class BilibiliAdapter implements SourceAdapter {
       throw new Error('This video has no playable audio stream')
     }
 
-    const cdnUrl = dash.audio[0].baseUrl
+    const audioStream = dash.audio[0]
+    const cdnUrl = audioStream.baseUrl
+
+    // Pre-populate metadata from API response
+    const apiMetadata: LoadByUriMetadata = {}
+    if (audioStream.bandWidth) {
+      apiMetadata.bitrate = audioStream.bandWidth
+    }
+    if (audioStream.mimeType) {
+      apiMetadata.codec = audioStream.mimeType
+    }
 
     // Bilibili CDN requires Referer: https://www.bilibili.com.
     // Browsers set this automatically for same-origin but not cross-origin.
@@ -215,10 +226,30 @@ class BilibiliAdapter implements SourceAdapter {
     // then fall back to Vite proxy which adds the proper Referer header.
     try {
       const blob = await this.tryFetchAudio(cdnUrl)
-      return { url: blob }
+
+      // Parse blob to extract full audio metadata
+      let parsedMetadata: LoadByUriMetadata | undefined
+      try {
+        const meta = await mm.parseBlob(blob)
+        const fmt = meta.format
+        parsedMetadata = {
+          sampleRate: fmt.sampleRate,
+          bitrate: fmt.bitrate || apiMetadata.bitrate,
+          bitDepth: fmt.bitsPerSample,
+          channels: fmt.numberOfChannels,
+          codec: fmt.codec || apiMetadata.codec,
+          container: fmt.container,
+          lossless: fmt.lossless,
+        }
+      } catch {
+        // Fall back to API metadata only
+        parsedMetadata = apiMetadata
+      }
+
+      return { url: blob, metadata: parsedMetadata }
     } catch {
       // Fallback: return direct CDN URL, browser may handle it
-      return { url: cdnUrl }
+      return { url: cdnUrl, metadata: apiMetadata }
     }
   }
 

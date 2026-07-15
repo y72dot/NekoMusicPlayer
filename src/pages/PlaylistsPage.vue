@@ -34,15 +34,19 @@
 
     <TrackList :tracks="filtered" :playlistId="playlist.id">
       <template #actions="{ track, index }">
-        <ActionMenu 
+        <ActionMenu
           :trackId="track.id"
           @play="playTrack(index, track)"
           @addToQueue="addToQueue(track)"
           @addToPlaylist="addToPlaylist(track)"
           @remove="removeTrack(index, track)"
+          @details="showDetails(track)"
         />
       </template>
     </TrackList>
+
+    <!-- Track Detail Modal -->
+    <TrackDetailModal :track="detailTrack" @close="detailTrack = null" />
 
     <!-- Playlist Selector Modal -->
     <div v-if="showSelector" class="modal-mask" @click="showSelector = false">
@@ -74,6 +78,7 @@ import TrackList from '@/components/TrackList.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
 import BatchActionBar from '@/components/BatchActionBar.vue'
 import SearchBar from '@/components/SearchBar.vue'
+import TrackDetailModal from '@/components/TrackDetailModal.vue'
 import type { Track } from '@/models/track'
 
 const route = useRoute()
@@ -94,6 +99,7 @@ const newName = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 const showSelector = ref(false)
 const selectedTrack = ref<Track | null>(null)
+const detailTrack = ref<Track | null>(null)
 
 watch(playlist, (p) => {
   if (p) newName.value = p.name
@@ -208,6 +214,10 @@ function invertSelection() {
   filtered.value.forEach(t => {
     selection.toggleSelection(t.id)
   })
+}
+
+function showDetails(track: Track) {
+  detailTrack.value = track
 }
 </script>
 

@@ -10,6 +10,7 @@ type PlayerEvents = {
   pause: void
   volumechange: number
   loaded: void
+  trackenriched: Track
 }
 
 type EventHandler<T> = (payload: T) => void
@@ -79,13 +80,26 @@ class PlayerEngineImpl extends EventEmitter {
   }
 
   async load(track: Track) {
-    this._track = track
+    this._track = { ...track }
     let src: string | Blob | undefined
 
     if (track.uri) {
       try {
         const result = await UriResolver.load(track.uri)
         src = result.url
+
+        // Merge metadata from adapter into track
+        if (result.metadata) {
+          const meta = result.metadata
+          if (meta.sampleRate !== undefined) this._track.sampleRate = meta.sampleRate
+          if (meta.bitrate !== undefined) this._track.bitrate = meta.bitrate
+          if (meta.bitDepth !== undefined) this._track.bitDepth = meta.bitDepth
+          if (meta.channels !== undefined) this._track.channels = meta.channels
+          if (meta.codec !== undefined) this._track.codec = meta.codec
+          if (meta.container !== undefined) this._track.container = meta.container
+          if (meta.lossless !== undefined) this._track.lossless = meta.lossless
+          this.emit('trackenriched', this._track)
+        }
       } catch (e) {
         console.warn('Failed to load via URI', e)
       }
