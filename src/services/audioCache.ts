@@ -1,4 +1,4 @@
-import { setBlob, getBlob, deleteBlob } from '@/services/db'
+import { setBlob, getBlob, deleteBlob, getBlobStatsByPrefix, clearBlobsByPrefix } from '@/services/db'
 import { createLogger } from '@/services/logger'
 
 const CACHE_PREFIX = 'audio:'
@@ -194,23 +194,12 @@ export const audioCache = {
   },
 
   async clear(): Promise<void> {
-    const meta = await loadMeta()
-    for (const key of Object.keys(meta.entries)) {
-      try {
-        await deleteBlob(key)
-      } catch (e) {
-        logger.warn('clear deleteBlob error', e)
-      }
-    }
+    await clearBlobsByPrefix(CACHE_PREFIX)
     await saveMeta(emptyMeta())
   },
 
   async getStats(): Promise<{ count: number; size: number }> {
-    const meta = await loadMeta()
-    return {
-      count: Object.keys(meta.entries).length,
-      size: meta.totalSize,
-    }
+    return getBlobStatsByPrefix(CACHE_PREFIX)
   },
 
   async trackExisting(key: string, size: number, sourceId: string): Promise<void> {

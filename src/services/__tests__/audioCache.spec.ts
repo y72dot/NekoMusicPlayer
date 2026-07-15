@@ -9,6 +9,19 @@ vi.mock('@/services/db', () => ({
   setBlob: vi.fn(async (key: string, blob: Blob) => { dbBlobStore.set(key, blob) }),
   getBlob: vi.fn(async (key: string): Promise<Blob | undefined> => dbBlobStore.get(key)),
   deleteBlob: vi.fn(async (key: string) => { dbBlobStore.delete(key) }),
+  getBlobStatsByPrefix: vi.fn(async (prefix: string): Promise<{ count: number; size: number }> => {
+    let count = 0
+    let size = 0
+    dbBlobStore.forEach((b, key) => {
+      if (key.startsWith(prefix)) { count++; size += b.size }
+    })
+    return { count, size }
+  }),
+  clearBlobsByPrefix: vi.fn(async (prefix: string) => {
+    for (const key of dbBlobStore.keys()) {
+      if (key.startsWith(prefix)) dbBlobStore.delete(key)
+    }
+  }),
   setLibrary: vi.fn(async () => {}),
   getLibrary: vi.fn(async () => undefined),
   setPlaylists: vi.fn(async () => {}),
@@ -33,15 +46,21 @@ vi.stubGlobal('indexedDB', {
       objectStoreNames: { contains: () => true },
       transaction: vi.fn().mockReturnValue({
         objectStore: vi.fn((name: string) => {
-          const s = name === 'blobs' ? new Map() : kvStore
+          const s = name === 'blobs' ? dbBlobStore : kvStore
           return {
             get: vi.fn((key: string) => ({
               get result() { return s.get(key) },
               set onsuccess(cb: any) { cb() },
               set onerror(_: any) {},
             })),
+            getAll: vi.fn(() => ({
+              get result() { return Array.from(s.values()) },
+              set onsuccess(cb: any) { cb() },
+              set onerror(_: any) {},
+            })),
             put: vi.fn((value: any, key?: string) => { s.set(key ?? '', value) }),
             delete: vi.fn((key: string) => { s.delete(key) }),
+            clear: vi.fn(() => { s.clear() }),
           }
         }),
         set oncomplete(cb: any) { Promise.resolve().then(cb) },

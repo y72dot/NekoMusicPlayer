@@ -210,3 +210,50 @@ export async function getBlob(key: string): Promise<Blob | undefined> {
     req.onerror = () => reject(req.error)
   })
 }
+
+export async function getBlobStatsByPrefix(prefix: string): Promise<{ count: number; size: number }> {
+  const db = await openDb()
+  return new Promise<{ count: number; size: number }>((resolve, reject) => {
+    const tx = db.transaction(BLOB_STORE, 'readonly')
+    const store = tx.objectStore(BLOB_STORE)
+    const req = store.openCursor()
+    let count = 0
+    let size = 0
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (cursor) {
+        if ((cursor.key as string).startsWith(prefix)) {
+          count++
+          const blob = cursor.value as Blob
+          size += blob?.size || 0
+        }
+        cursor.continue()
+      } else {
+        resolve({ count, size })
+      }
+    }
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function clearBlobsByPrefix(prefix: string): Promise<void> {
+  const db = await openDb()
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(BLOB_STORE, 'readwrite')
+    const store = tx.objectStore(BLOB_STORE)
+    const req = store.openCursor()
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (cursor) {
+        if ((cursor.key as string).startsWith(prefix)) {
+          cursor.delete()
+        }
+        cursor.continue()
+      } else {
+        resolve()
+      }
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}

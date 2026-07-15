@@ -94,6 +94,30 @@ const { kvStore, idxBlobStore, ls, mockAudioInstance, bilibiliClientMocks, netea
                 set onsuccess(cb: any) { cb() },
                 set onerror(_: any) {},
               })),
+              getAll: vi.fn(() => ({
+                get result() { return Array.from(s.values()) },
+                set onsuccess(cb: any) { cb() },
+                set onerror(_: any) {},
+              })),
+              openCursor: vi.fn(() => {
+                const entries = Array.from(s.entries())
+                let idx = 0
+                let onsuccess: any = null
+                const cursor = {
+                  get key() { return entries[idx]?.[0] },
+                  get value() { return entries[idx]?.[1] },
+                  continue: vi.fn(() => { idx++; if (onsuccess) onsuccess() }),
+                  delete: vi.fn(() => {
+                    const key = entries[idx]?.[0]
+                    if (key !== undefined) s.delete(key)
+                  }),
+                }
+                return {
+                  get result() { return idx < entries.length ? cursor : null },
+                  set onsuccess(cb: any) { onsuccess = cb; cb() },
+                  set onerror(_: any) {},
+                }
+              }),
               put: vi.fn((value: any, key?: string) => { s.set(key ?? '', value) }),
               delete: vi.fn((key: string) => { s.delete(key) }),
             }
@@ -359,7 +383,7 @@ describe('Playback Roundtrip', () => {
       expect(mockAudioInstance.src).toMatch(/^blob:mock-/)
       const phase1Src = mockAudioInstance.src
 
-      // fs tracks should NOT be in audioCache
+      // fs tracks should NOT be in audioCache (their blobs have no 'audio:' prefix)
       const statsAfterPhase1 = await audioCache.getStats()
       expect(statsAfterPhase1.count).toBe(0)
 
