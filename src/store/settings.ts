@@ -20,6 +20,21 @@ export const useSettingsStore = defineStore('settings', {
     setMode(mode: PlayMode) {
       this.settings.playMode = mode
     },
+    setNeteaseCookie(cookie: string) {
+      this.settings.neteaseCookie = cookie
+    },
+    setNeteaseCsrf(csrf: string) {
+      this.settings.neteaseCsrf = csrf
+    },
+    setBilibiliSessdata(s: string) {
+      this.settings.bilibiliSessdata = s
+    },
+    setBilibiliCsrf(c: string) {
+      this.settings.bilibiliCsrf = c
+    },
+    setBilibiliBuvid3(b: string) {
+      this.settings.bilibiliBuvid3 = b
+    },
   },
   persist: {
     key: 'neko.settings.v1',

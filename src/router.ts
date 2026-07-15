@@ -3,6 +3,7 @@ import { useSelectionStore } from '@/store/selection'
 import PlayerPage from '@/pages/PlayerPage.vue'
 import PlaylistsPage from '@/pages/PlaylistsPage.vue'
 import ImportPage from '@/pages/ImportPage.vue'
+import SettingsPage from '@/pages/SettingsPage.vue'
 import LibraryPage from '@/pages/LibraryPage.vue'
 
 const routes: RouteRecordRaw[] = [
@@ -12,6 +13,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/playlists', component: PlaylistsPage },
   { path: '/playlist/:id', component: PlaylistsPage },
   { path: '/import', component: ImportPage },
+  { path: '/settings', component: SettingsPage },
 ]
 
 const router = createRouter({

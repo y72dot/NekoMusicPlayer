@@ -4,6 +4,7 @@
       <router-link to="/library" class="nav-item" active-class="active">🎵 {{ $t('nav.allSongs') }}</router-link>
       <router-link to="/player" class="nav-item" active-class="active">🎧 {{ $t('nav.nowPlaying') }}</router-link>
       <router-link to="/import" class="nav-item" active-class="active">📥 {{ $t('nav.importMusic') }}</router-link>
+      <router-link to="/settings" class="nav-item" active-class="active">⚙ {{ $t('nav.settings') }}</router-link>
     </nav>
     <div class="sep"></div>
     <div class="top">

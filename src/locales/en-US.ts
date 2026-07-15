@@ -6,6 +6,7 @@ export default {
     allSongs: 'All Songs',
     nowPlaying: 'Now Playing',
     importMusic: 'Import Music',
+    settings: 'Settings',
   },
   library: {
     title: 'All Songs',
@@ -132,5 +133,30 @@ export default {
     single: 'Single Repeat',
     loop: 'List Loop',
     shuffle: 'Shuffle',
+  },
+  settings: {
+    title: 'Settings',
+    playback: {
+      title: 'Playback',
+      defaultVolume: 'Default Volume',
+      defaultPlayMode: 'Default Play Mode',
+    },
+    netease: {
+      title: 'NetEase Cloud Music',
+      description: 'Configure Cookie for higher quality audio.',
+    },
+    bilibili: {
+      title: 'Bilibili',
+      description: 'Configure Cookie for higher quality audio (320K).',
+    },
+    data: {
+      title: 'Data Management',
+      clearCache: 'Clear Cache',
+      clearing: 'Clearing...',
+      cleared: 'Cache cleared',
+      cacheInfo: '{count} files, {size}',
+      confirmClear: 'Are you sure you want to clear all cached audio files?',
+      noCache: 'No cached files',
+    },
   },
 }

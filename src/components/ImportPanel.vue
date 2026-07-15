@@ -108,16 +108,16 @@ const hasCookie = computed(() => Boolean(settings.settings.neteaseCookie))
 const hasBilibiliCookie = computed(() => Boolean(settings.settings.bilibiliSessdata))
 
 function saveCookie() {
-  settings.settings.neteaseCookie = cookieInput.value.trim()
-  settings.settings.neteaseCsrf = csrfInput.value.trim()
+  settings.setNeteaseCookie(cookieInput.value.trim())
+  settings.setNeteaseCsrf(csrfInput.value.trim())
   showCookieSettings.value = false
   toast.success(t('import.netease.cookieSave'))
 }
 
 function saveBilibiliCookie() {
-  settings.settings.bilibiliSessdata = bilibiliSessdataInput.value.trim()
-  settings.settings.bilibiliCsrf = bilibiliCsrfInput.value.trim()
-  settings.settings.bilibiliBuvid3 = bilibiliBuvid3Input.value.trim()
+  settings.setBilibiliSessdata(bilibiliSessdataInput.value.trim())
+  settings.setBilibiliCsrf(bilibiliCsrfInput.value.trim())
+  settings.setBilibiliBuvid3(bilibiliBuvid3Input.value.trim())
   showBilibiliCookieSettings.value = false
   toast.success(t('import.bilibili.cookieSave'))
 }

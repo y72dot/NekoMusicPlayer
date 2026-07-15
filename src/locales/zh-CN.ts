@@ -6,6 +6,7 @@ export default {
     allSongs: '全部歌曲',
     nowPlaying: '正在播放',
     importMusic: '导入音乐',
+    settings: '设置',
   },
   library: {
     title: '全部歌曲',
@@ -132,5 +133,30 @@ export default {
     single: '单曲循环',
     loop: '列表循环',
     shuffle: '随机',
+  },
+  settings: {
+    title: '设置',
+    playback: {
+      title: '播放设置',
+      defaultVolume: '默认音量',
+      defaultPlayMode: '默认播放模式',
+    },
+    netease: {
+      title: '网易云音乐',
+      description: '配置 Cookie 后可获取高品质音源。',
+    },
+    bilibili: {
+      title: 'B站',
+      description: '配置 Cookie 后可获取高品质音源（320K）。',
+    },
+    data: {
+      title: '数据管理',
+      clearCache: '清除缓存',
+      clearing: '正在清除...',
+      cleared: '缓存已清除',
+      cacheInfo: '{count} 个文件，共 {size}',
+      confirmClear: '确定要清除所有缓存的音频文件吗？',
+      noCache: '暂无缓存文件',
+    },
   },
 }
