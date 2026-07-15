@@ -36,6 +36,36 @@
       <button @click="saveCookie">{{ t('import.netease.cookieSave') }}</button>
     </div>
 
+    <h3>{{ t('import.bilibili.title') }}</h3>
+    <textarea v-model="bilibiliText" :placeholder="t('import.bilibili.placeholder')"></textarea>
+    <div class="netease-row">
+      <button @click="importBilibili" :disabled="bilibiliLoading">
+        {{ bilibiliLoading ? '...' : t('import.bilibili.importBtn') }}
+      </button>
+    </div>
+    <p
+      v-if="!hasBilibiliCookie"
+      class="cookie-warning"
+      @click="showBilibiliCookieSettings = !showBilibiliCookieSettings"
+      role="button"
+    >{{ t('import.bilibili.cookieWarning') }}</p>
+    <div v-if="showBilibiliCookieSettings" class="cookie-settings">
+      <p class="cookie-guide">{{ t('import.bilibili.cookieGuide') }}</p>
+      <label class="cookie-field">
+        <span>{{ t('import.bilibili.cookieLabel') }}</span>
+        <input v-model="bilibiliSessdataInput" type="text" placeholder="SESSDATA" />
+      </label>
+      <label class="cookie-field">
+        <span>{{ t('import.bilibili.csrfLabel') }}</span>
+        <input v-model="bilibiliCsrfInput" type="text" placeholder="bili_jct" />
+      </label>
+      <label class="cookie-field">
+        <span>{{ t('import.bilibili.buvid3Label') }}</span>
+        <input v-model="bilibiliBuvid3Input" type="text" placeholder="buvid3" />
+      </label>
+      <button @click="saveBilibiliCookie">{{ t('import.bilibili.cookieSave') }}</button>
+    </div>
+
     <h3>{{ t('import.localFiles') }}</h3>
     <input type="file" multiple @change="onFiles" accept="audio/*" />
 
@@ -67,13 +97,70 @@ const showCookieSettings = ref(false)
 const cookieInput = ref('')
 const csrfInput = ref('')
 
+const bilibiliText = ref('')
+const bilibiliLoading = ref(false)
+const showBilibiliCookieSettings = ref(false)
+const bilibiliSessdataInput = ref('')
+const bilibiliCsrfInput = ref('')
+const bilibiliBuvid3Input = ref('')
+
 const hasCookie = computed(() => Boolean(settings.settings.neteaseCookie))
+const hasBilibiliCookie = computed(() => Boolean(settings.settings.bilibiliSessdata))
 
 function saveCookie() {
   settings.settings.neteaseCookie = cookieInput.value.trim()
   settings.settings.neteaseCsrf = csrfInput.value.trim()
   showCookieSettings.value = false
   toast.success(t('import.netease.cookieSave'))
+}
+
+function saveBilibiliCookie() {
+  settings.settings.bilibiliSessdata = bilibiliSessdataInput.value.trim()
+  settings.settings.bilibiliCsrf = bilibiliCsrfInput.value.trim()
+  settings.settings.bilibiliBuvid3 = bilibiliBuvid3Input.value.trim()
+  showBilibiliCookieSettings.value = false
+  toast.success(t('import.bilibili.cookieSave'))
+}
+
+async function importBilibili() {
+  const lines = bilibiliText.value.split(/\n/).map(s => s.trim()).filter(Boolean)
+  if (!lines.length) return
+
+  const adapter = registry.get('bilibili')
+  if (!adapter) {
+    console.error('Bilibili adapter not found')
+    return
+  }
+
+  bilibiliLoading.value = true
+  try {
+    const tracks = await adapter.resolve(lines)
+    await playlists.addToLibrary(tracks)
+    bilibiliText.value = ''
+    toast.success(t('import.success', { count: tracks.length }))
+  } catch (e: any) {
+    console.error('Failed to import from Bilibili:', e)
+    const msg = e?.message || String(e)
+    if (/cookie expired/i.test(msg)) {
+      toast.error(t('toast.bilibiliCookieExpired'))
+    } else if (/rate too high/i.test(msg)) {
+      toast.error(t('toast.bilibiliRateLimit'))
+    } else if (/access denied/i.test(msg)) {
+      toast.error(t('toast.bilibiliAccessDenied'))
+    } else if (/rate limited/i.test(msg)) {
+      toast.error(t('toast.bilibiliGlobalRateLimit'))
+    } else if (/not found/i.test(msg)) {
+      toast.error(t('toast.bilibiliNotFound'))
+    } else if (/no playable audio/i.test(msg)) {
+      toast.error(t('toast.bilibiliNoAudio'))
+    } else if (/timed out/i.test(msg)) {
+      toast.error(t('toast.bilibiliTimeout'))
+    } else {
+      toast.error(msg || t('import.failed'))
+    }
+  } finally {
+    bilibiliLoading.value = false
+  }
 }
 
 async function importUrls() {

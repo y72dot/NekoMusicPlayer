@@ -7,7 +7,11 @@
       "Bash(npx vitest:*)",
       "Bash(npx playwright:*)",
       "Bash(npx vite:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "Bash(echo:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }

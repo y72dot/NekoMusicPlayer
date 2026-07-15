@@ -5,4 +5,7 @@ export interface Settings {
   playMode: PlayMode
   neteaseCookie: string
   neteaseCsrf: string
+  bilibiliSessdata: string
+  bilibiliCsrf: string
+  bilibiliBuvid3: string
 }

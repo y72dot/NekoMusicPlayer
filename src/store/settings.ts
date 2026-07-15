@@ -8,6 +8,9 @@ export const useSettingsStore = defineStore('settings', {
       playMode: 'loop' as PlayMode,
       neteaseCookie: '',
       neteaseCsrf: '',
+      bilibiliSessdata: '',
+      bilibiliCsrf: '',
+      bilibiliBuvid3: '',
     } as Settings,
   }),
   actions: {
