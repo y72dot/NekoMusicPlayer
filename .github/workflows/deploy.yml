@@ -1,0 +1,33 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm install --legacy-peer-deps
+
+      - run: npm run build
+
+      - name: Deploy via rsync
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          rsync -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key" \
+            -rltgoDzvO --delete \
+            dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/nekomusic/releases/${{ github.run_id }}/
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "ln -sfn /var/www/nekomusic/releases/${{ github.run_id }} /var/www/nekomusic/current && ls -dt /var/www/nekomusic/releases/*/ | tail -n +6 | xargs -r rm -rf && sudo systemctl reload nginx"
