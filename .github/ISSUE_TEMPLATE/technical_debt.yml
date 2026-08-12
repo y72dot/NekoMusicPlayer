@@ -1,0 +1,43 @@
+name: 技术债务
+description: 提议可验证的维护性、可靠性或工程改进
+title: "[Debt]: "
+labels:
+  - "type:debt"
+  - "status:needs-triage"
+body:
+  - type: textarea
+    id: current
+    attributes:
+      label: 当前问题
+      description: 提供代码、测试、依赖或流程中的具体证据。
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响与紧迫性
+      description: 说明可靠性、开发效率、安全或维护成本影响。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 说明最小变更范围、替代方案和非目标。
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: 兼容性与回滚风险
+      description: 是否影响数据、依赖、浏览器、构建或部署？如何回滚？
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准与测试
+      description: 列出可执行命令、性能指标或回归测试。
+    validations:
+      required: true
+

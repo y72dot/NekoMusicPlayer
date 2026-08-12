@@ -222,6 +222,8 @@ Cookie 会保存在当前浏览器的 LocalStorage 中。请只在可信设备�
 
 ## 🤝 贡献指南
 
+提交需求前请查看 [Roadmap](./ROADMAP.md)，并使用对应的 Bug、Feature、Adapter 或 Technical Debt Issue 模板。只有完成评审、关联负责人和 Milestone 且具备验收标准的事项才视为已排期。
+
 1. Fork 本仓库
 2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)

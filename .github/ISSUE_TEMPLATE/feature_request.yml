@@ -1,0 +1,60 @@
+name: 功能建议
+description: 提议新的用户能力或体验改进
+title: "[Feature]: "
+labels:
+  - "type:feature"
+  - "status:needs-triage"
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 用户问题与场景
+      description: 谁在什么情况下遇到什么问题？现有方式为何不足？
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 期望结果
+      description: 描述用户可观察到的结果，不要求预先指定实现方式。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与非目标
+      description: 明确本次建议包含什么、暂不包含什么。
+    validations:
+      required: true
+  - type: textarea
+    id: interaction
+    attributes:
+      label: UI 与交互
+      description: 描述入口、关键状态、错误反馈和移动端影响。
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: 数据与兼容性影响
+      description: 是否涉及存储结构、迁移、PWA、浏览器或旧数据兼容？
+  - type: textarea
+    id: risks
+    attributes:
+      label: 风险评估
+      description: 说明安全、隐私、版权、外部 API 和维护成本风险。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 使用可验证的条目说明何时算完成。
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: 测试方案
+      description: 建议覆盖的单元测试、E2E、兼容性或人工验证。
+    validations:
+      required: true
+

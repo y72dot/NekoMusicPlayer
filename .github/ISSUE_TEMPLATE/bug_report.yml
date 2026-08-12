@@ -1,0 +1,72 @@
+name: Bug 报告
+description: 报告可复现的功能、兼容性或数据问题
+title: "[Bug]: "
+labels:
+  - "type:bug"
+  - "status:needs-triage"
+body:
+  - type: markdown
+    attributes:
+      value: 请先移除 Cookie、账号、文件路径等敏感信息，并尽量提供最小复现步骤。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 说明实际结果、预期结果及对使用的影响。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开……
+        2. 导入……
+        3. 点击……
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: v0.3.0 或提交 SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      description: 操作系统、浏览器及版本、是否以 PWA 运行。
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: 涉及的数据源
+      options:
+        - 不涉及或不确定
+        - 本地文件
+        - 外部 URL
+        - 网易云音乐
+        - Bilibili
+        - 多个来源
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志与附件
+      description: 可附截图或脱敏日志；禁止提交 Cookie、Token、账号及私人媒体内容。
+  - type: textarea
+    id: regression
+    attributes:
+      label: 回归与验收建议
+      description: 如果已知，请说明应增加的单元测试、E2E 或人工检查。
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 安全确认
+      options:
+        - label: 我已确认提交内容不包含 Cookie、Token、密码或其他敏感信息。
+          required: true
+

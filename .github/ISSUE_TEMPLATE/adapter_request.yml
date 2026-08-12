@@ -1,0 +1,66 @@
+name: 数据源适配器建议
+description: 评估新增或调整音乐数据源适配器
+title: "[Adapter]: "
+labels:
+  - "type:adapter"
+  - "status:needs-triage"
+  - "risk:external-api"
+body:
+  - type: input
+    id: service
+    attributes:
+      label: 服务或数据源
+    validations:
+      required: true
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 用户场景
+      description: 说明需要导入或播放的内容类型及用户价值。
+    validations:
+      required: true
+  - type: textarea
+    id: interface
+    attributes:
+      label: 接口与认证方式
+      description: 是否有公开文档、稳定 API、Cookie、Token、代理或跨域要求？请勿粘贴真实凭据。
+    validations:
+      required: true
+  - type: textarea
+    id: compliance
+    attributes:
+      label: 授权与合规依据
+      description: 说明服务条款、版权、地域、速率限制和用户授权风险。
+    validations:
+      required: true
+  - type: textarea
+    id: data_model
+    attributes:
+      label: 数据映射
+      description: 标题、艺术家、专辑、封面、时长和可播放 URL 如何映射？
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: 失败与降级策略
+      description: 接口变化、限流、认证过期或资源不可用时如何反馈？
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收与测试
+      description: 包含契约 Fixture、网络隔离、E2E 和真实烟雾检查建议。
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 安全确认
+      options:
+        - label: 该建议不要求在仓库、日志或测试附件中保存真实凭据。
+          required: true
+        - label: 该建议不以绕过 DRM 或平台访问控制为目标。
+          required: true
+
