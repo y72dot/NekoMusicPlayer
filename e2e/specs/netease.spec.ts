@@ -61,8 +61,10 @@ test.describe('Netease Import', () => {
   })
 
   test('NE-05: type selector has correct options', async () => {
-    const options = await importPage.neteaseTypeSelect.locator('option').allTextContents()
-    expect(options).toContain('自动识别')
+    const values = await importPage.neteaseTypeSelect.locator('option').evaluateAll(
+      options => options.map(option => (option as HTMLOptionElement).value),
+    )
+    expect(values).toEqual(['auto', 'song', 'playlist', 'album'])
   })
 
   test('NE-06: import without cookie shows error toast', async ({ page }) => {

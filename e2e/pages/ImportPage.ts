@@ -22,20 +22,20 @@ export class ImportPage extends BasePage {
     super(page)
 
     this.panel = page.locator('.panel')
-    this.urlTextarea = this.panel.locator('textarea').nth(0)
-    this.btnImportUrl = this.panel.locator('button').first()
+    this.urlTextarea = page.getByTestId('external-url-input')
+    this.btnImportUrl = page.getByTestId('external-url-import')
     this.fileInput = this.panel.locator('input[type="file"][accept*="audio"]')
     this.btnExport = this.panel.locator('.json button')
     this.jsonFileInput = this.panel.locator('.json input[type="file"]')
 
     // Netease section
-    this.neteaseTextarea = this.panel.locator('textarea').nth(1)
-    this.neteaseTypeSelect = this.panel.locator('.netease-row select')
-    this.btnImportNetease = this.panel.locator('.netease-row button')
-    this.cookieWarning = this.panel.locator('.cookie-warning')
-    this.cookieInput = this.panel.locator('.cookie-settings input').nth(0)
-    this.csrfInput = this.panel.locator('.cookie-settings input').nth(1)
-    this.btnSaveCookie = this.panel.locator('.cookie-settings button')
+    this.neteaseTextarea = page.getByTestId('netease-input')
+    this.neteaseTypeSelect = page.getByTestId('netease-type')
+    this.btnImportNetease = page.getByTestId('netease-import')
+    this.cookieWarning = page.getByTestId('netease-cookie-warning')
+    this.cookieInput = page.getByTestId('netease-cookie-settings').locator('input').nth(0)
+    this.csrfInput = page.getByTestId('netease-cookie-settings').locator('input').nth(1)
+    this.btnSaveCookie = page.getByTestId('netease-cookie-save')
   }
 
   async goto() {

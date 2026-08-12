@@ -1,29 +1,30 @@
 <template>
   <div class="panel">
     <h3>{{ t('import.externalLinks') }}</h3>
-    <textarea v-model="urlText" :placeholder="t('import.urlPlaceholder')"></textarea>
-    <button @click="importUrls">{{ t('import.importUrls') }}</button>
+    <textarea data-testid="external-url-input" v-model="urlText" :placeholder="t('import.urlPlaceholder')"></textarea>
+    <button data-testid="external-url-import" @click="importUrls">{{ t('import.importUrls') }}</button>
 
     <h3>{{ t('import.netease.title') }}</h3>
-    <textarea v-model="neteaseText" :placeholder="t('import.netease.placeholder')"></textarea>
+    <textarea data-testid="netease-input" v-model="neteaseText" :placeholder="t('import.netease.placeholder')"></textarea>
     <div class="netease-row">
-      <select v-model="neteaseType">
+      <select data-testid="netease-type" v-model="neteaseType">
         <option value="auto">{{ t('import.netease.typeAuto') }}</option>
         <option value="song">{{ t('import.netease.typeSong') }}</option>
         <option value="playlist">{{ t('import.netease.typePlaylist') }}</option>
         <option value="album">{{ t('import.netease.typeAlbum') }}</option>
       </select>
-      <button @click="importNetease" :disabled="neteaseLoading">
+      <button data-testid="netease-import" @click="importNetease" :disabled="neteaseLoading">
         {{ neteaseLoading ? '...' : t('import.netease.importBtn') }}
       </button>
     </div>
     <p
       v-if="!hasCookie"
       class="cookie-warning"
+      data-testid="netease-cookie-warning"
       @click="showCookieSettings = !showCookieSettings"
       role="button"
     >{{ t('import.netease.cookieWarning') }}</p>
-    <div v-if="showCookieSettings" class="cookie-settings">
+    <div v-if="showCookieSettings" class="cookie-settings" data-testid="netease-cookie-settings">
       <p class="cookie-guide">{{ t('import.netease.cookieGuide') }}</p>
       <label class="cookie-field">
         <span>{{ t('import.netease.cookieLabel') }}</span>
@@ -33,7 +34,7 @@
         <span>{{ t('import.netease.csrfLabel') }}</span>
         <input v-model="csrfInput" type="text" placeholder="__csrf" />
       </label>
-      <button @click="saveCookie">{{ t('import.netease.cookieSave') }}</button>
+      <button data-testid="netease-cookie-save" @click="saveCookie">{{ t('import.netease.cookieSave') }}</button>
     </div>
 
     <h3>{{ t('import.bilibili.title') }}</h3>

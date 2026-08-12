@@ -37,7 +37,7 @@ test.describe('Import', () => {
     await importPage.importUrl('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3')
     const toast = page.locator('.toast-container .toast-item.success')
     await toast.waitFor({ state: 'visible', timeout: 30000 })
-    await expect(toast).toContainText('已导入')
+    await expect(toast).toContainText(/已导入|Imported/)
   })
 
   test('IMP-02: URL import adds tracks to library', async ({ page }) => {

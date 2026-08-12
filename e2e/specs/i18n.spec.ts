@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { BasePage } from '../pages/BasePage'
+import { ImportPage } from '../pages/ImportPage'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -62,11 +63,8 @@ test.describe('i18n - Chinese (zh-CN)', () => {
     await page.goto('/#/library')
     // Import a track first
     await app.navigateToImport()
-    const panel = page.locator('.panel')
-    await panel.locator('textarea').fill(
-      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
-    )
-    await panel.locator('button').first().click()
+    const importPage = new ImportPage(page)
+    await importPage.importUrl('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3')
     await page.locator('.toast-item').first().waitFor({ state: 'visible', timeout: 30000 })
 
     // Enter multi-select
