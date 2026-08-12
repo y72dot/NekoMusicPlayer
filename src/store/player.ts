@@ -275,6 +275,6 @@ export const usePlayerStore = defineStore('player', {
   persist: {
     key: 'neko.player.v1.state',
     storage: localStorage,
-    pick: ['index', 'queue'],
+    paths: ['index', 'queue'],
   },
 })

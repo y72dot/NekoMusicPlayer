@@ -64,7 +64,11 @@ class FileSystemAdapter implements SourceAdapter {
           // Extract cover art
           if (common.picture && common.picture.length > 0) {
             const pic = common.picture[0]
-            const coverBlob = new Blob([pic.data], { type: pic.format })
+            // music-metadata exposes ArrayBufferLike-backed bytes, while BlobPart
+            // requires an ArrayBuffer-backed view. Copying also detaches the cover
+            // from the parser's buffer lifetime.
+            const coverBytes = new Uint8Array(pic.data)
+            const coverBlob = new Blob([coverBytes], { type: pic.format })
             const coverBlobId = `cover:${blobId}`
             await setBlob(coverBlobId, coverBlob)
             coverUrl = UriResolver.generate(this.id, 'blob', coverBlobId, { type: 'cover' })

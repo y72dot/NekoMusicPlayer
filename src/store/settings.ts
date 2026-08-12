@@ -39,6 +39,6 @@ export const useSettingsStore = defineStore('settings', {
   persist: {
     key: 'neko.settings.v1',
     storage: localStorage,
-    pick: ['settings'],
+    paths: ['settings'],
   },
 })

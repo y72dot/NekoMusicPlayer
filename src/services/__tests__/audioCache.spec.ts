@@ -87,7 +87,10 @@ describe('audioCache', () => {
   beforeEach(() => {
     kvStore.clear()
     dbBlobStore.clear()
-    vi.restoreAllMocks()
+    // Keep the IndexedDB mock implementations installed at module scope.
+    // restoreAllMocks() resets those implementations in Vitest 2/3, causing
+    // metadata writes to complete without touching the in-memory store.
+    vi.clearAllMocks()
   })
 
   // ================================================================
