@@ -5,8 +5,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
-  build-and-deploy:
+  check:
+    name: Typecheck, unit tests and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,16 +24,67 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - run: npm install --legacy-peer-deps
+      - run: npm ci
+      - run: npm run check
 
-      - run: npm run build
+      - name: Upload production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=4 --reporter=line
+
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  deploy:
+    name: Deploy verified build
+    needs: [check, e2e]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download verified production build
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build-${{ github.sha }}
+          path: dist
 
       - name: Deploy via rsync
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           sudo apt-get install -y sshpass
-          rsync -e "sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no" \
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          rsync -e "sshpass -e ssh" \
             -rltgoDzvO --delete \
-            dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/nekomusic/releases/${{ github.run_id }}/
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            dist/ "$SSH_USER@$SSH_HOST:/var/www/nekomusic/releases/${{ github.run_id }}/"
+          sshpass -e ssh "$SSH_USER@$SSH_HOST" \
             "ln -sfn /var/www/nekomusic/releases/${{ github.run_id }} /var/www/nekomusic/current && ls -dt /var/www/nekomusic/releases/*/ | tail -n +6 | xargs -r rm -rf && sudo systemctl reload nginx"
