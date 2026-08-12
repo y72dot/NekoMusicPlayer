@@ -55,6 +55,7 @@ describe('NeteaseAdapter', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network is disabled in unit tests')))
     mockSettings.neteaseCookie = 'test_cookie'
     mockSettings.neteaseCsrf = 'test_csrf'
   })

@@ -134,5 +134,7 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
+    include: ['src/**/*.spec.ts'],
+    exclude: ['e2e/**', 'dist/**', 'playwright-report/**', 'test-results/**'],
   },
 })

@@ -42,7 +42,20 @@ npm run dev
 ### 运行测试
 
 ```bash
+# 单元测试（运行一次）
 npm test
+
+# 单元测试监听模式
+npm run test:watch
+
+# 端到端测试
+npm run test:e2e
+
+# 提交前检查：类型、单元测试、生产构建
+npm run check
+
+# 完整回归
+npm run test:all
 ```
 
 ## 📂 项目结构
