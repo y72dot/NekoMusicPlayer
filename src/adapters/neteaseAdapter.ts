@@ -6,6 +6,7 @@ import { NeteaseClient } from '@/services/neteaseClient'
 import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
 import * as mm from 'music-metadata'
+import { AdapterError } from '@/adapters/adapterError'
 
 const NETBASE_URL_PATTERN = /music\.163\.com/
 const SONG_ID_PATTERN = /^\d{4,}$/
@@ -13,6 +14,12 @@ const SONG_ID_PATTERN = /^\d{4,}$/
 class NeteaseAdapter implements SourceAdapter {
   id = 'netease'
   name = 'NetEase Cloud Music'
+  capabilities = { local: false, authentication: 'required', batchResolve: true, cacheable: true } as const
+
+  async checkHealth() {
+    const authenticated = Boolean(useSettingsStore().settings.neteaseCookie)
+    return { status: authenticated ? 'available' : 'degraded', authenticated, checkedAt: Date.now(), message: authenticated ? undefined : 'Cookie required' } as const
+  }
 
   canResolve(input: unknown): boolean {
     if (typeof input === 'string') {
@@ -43,13 +50,13 @@ class NeteaseAdapter implements SourceAdapter {
     if (/^\d+$/.test(pureId)) {
       return { type: 'song', id: pureId }
     }
-    throw new Error(`Cannot parse Netease URL: ${input}`)
+    throw new AdapterError('INVALID_INPUT', `Cannot parse Netease URL: ${input}`, this.id)
   }
 
   async resolve(input: unknown): Promise<Track[]> {
     const settings = useSettingsStore()
     if (!settings.settings.neteaseCookie) {
-      throw new Error('Please configure NetEase Cookie first')
+      throw new AdapterError('AUTH_REQUIRED', 'Please configure NetEase Cookie first', this.id)
     }
 
     const inputs = Array.isArray(input) ? (input as string[]) : [input as string]
@@ -62,13 +69,13 @@ class NeteaseAdapter implements SourceAdapter {
       if (type === 'song') {
         const detail = await client.getSongDetail([id])
         if (detail.code !== 200 || !detail.songs?.length) {
-          throw new Error(`Song not found (ID: ${id})`)
+          throw new AdapterError('NOT_FOUND', `Song not found (ID: ${id})`, this.id)
         }
         allTracks.push(this.mapSongToTrack(detail.songs[0]))
       } else if (type === 'playlist') {
         const detail = await client.getPlaylistDetail(id)
         if (detail.code !== 200) {
-          throw new Error(`Playlist not found (ID: ${id})`)
+          throw new AdapterError('NOT_FOUND', `Playlist not found (ID: ${id})`, this.id)
         }
 
         let songs = detail.playlist.tracks || []
@@ -96,7 +103,7 @@ class NeteaseAdapter implements SourceAdapter {
       } else if (type === 'album') {
         const detail = await client.getAlbum(id)
         if (detail.code !== 200) {
-          throw new Error(`Album not found (ID: ${id})`)
+          throw new AdapterError('NOT_FOUND', `Album not found (ID: ${id})`, this.id)
         }
         const albumSongs = detail.songs || []
         for (const song of albumSongs) {
@@ -114,7 +121,7 @@ class NeteaseAdapter implements SourceAdapter {
   ): Promise<{ url: string | Blob; metadata?: LoadByUriMetadata }> {
     const settings = useSettingsStore()
     if (!settings.settings.neteaseCookie) {
-      throw new Error('Please configure NetEase Cookie first')
+      throw new AdapterError('AUTH_REQUIRED', 'Please configure NetEase Cookie first', this.id)
     }
 
     const client = new NeteaseClient()
@@ -129,12 +136,12 @@ class NeteaseAdapter implements SourceAdapter {
 
     const result = await client.getSongUrl(resourceId, quality)
     if (result.code !== 200 || !result.data?.length) {
-      throw new Error(`Failed to get playback URL (ID: ${resourceId})`)
+      throw new AdapterError('NOT_FOUND', `Failed to get playback URL (ID: ${resourceId})`, this.id)
     }
 
     const songUrl = result.data[0]?.url
     if (!songUrl) {
-      throw new Error('Song unavailable due to copyright restrictions')
+      throw new AdapterError('COPYRIGHT_RESTRICTED', 'Song unavailable due to copyright restrictions', this.id)
     }
 
     // Fetch as blob and parse metadata

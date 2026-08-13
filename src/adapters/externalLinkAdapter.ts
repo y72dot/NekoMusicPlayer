@@ -1,6 +1,7 @@
 import type { SourceAdapter } from '@/adapters/types'
 import type { Track } from '@/models/track'
 import { UriResolver } from '@/core/uriResolver'
+import { AdapterError } from '@/adapters/adapterError'
 
 function toTitle(url: string) {
   try {
@@ -14,6 +15,8 @@ function toTitle(url: string) {
 class ExternalLinkAdapter implements SourceAdapter {
   id = 'external'
   name = 'External Link'
+  capabilities = { local: false, authentication: 'none', batchResolve: true, cacheable: false } as const
+  async checkHealth() { return { status: navigator.onLine ? 'available' : 'degraded', authenticated: true, checkedAt: Date.now(), message: navigator.onLine ? undefined : 'Browser is offline' } as const }
   
   canResolve(input: unknown): boolean {
     if (typeof input === 'string') return /^https?:\/\//.test(input)
@@ -55,7 +58,7 @@ class ExternalLinkAdapter implements SourceAdapter {
 
   async loadByUri(resourceId: string, params: Record<string, string>): Promise<{ url: string | Blob }> {
     if (!params.url) {
-      throw new Error('External link URI missing url parameter')
+      throw new AdapterError('INVALID_INPUT', 'External link URI missing url parameter', this.id)
     }
     return { url: params.url }
   }

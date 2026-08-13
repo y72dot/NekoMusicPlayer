@@ -154,6 +154,12 @@ export default {
       description: 'Configure Cookie for higher quality audio (320K).',
     },
     security: { show: 'Show', hide: 'Hide', clearNetease: 'Clear NetEase credentials', clearBilibili: 'Clear Bilibili credentials' },
+    sources: {
+      title: 'Music Sources',
+      description: 'Review adapter capabilities and verify the current browser configuration.',
+      check: 'Check sources', checking: 'Checking...', unchecked: 'Not checked',
+      available: 'Available', degraded: 'Limited', unavailable: 'Unavailable',
+    },
     data: {
       title: 'Data Management',
       clearCache: 'Clear Cache',

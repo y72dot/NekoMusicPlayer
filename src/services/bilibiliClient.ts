@@ -8,6 +8,7 @@ import type {
   BilibiliUserSpace,
 } from '@/models/bilibili'
 import { API_PATHS, UPSTREAM_COOKIE_HEADER } from '@/config/proxy'
+import { AdapterError, asAdapterError } from '@/adapters/adapterError'
 
 const API_BASE = API_PATHS.bilibili
 const AUDIO_BASE = API_PATHS.bilibiliAudio
@@ -59,34 +60,34 @@ export class BilibiliClient {
       })
 
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Bilibili Cookie expired, please re-obtain')
+        throw new AdapterError('AUTH_REQUIRED', 'Bilibili Cookie expired, please re-obtain', 'bilibili')
       }
 
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+        throw new AdapterError('PROXY_UNAVAILABLE', `Request failed: ${response.status} ${response.statusText}`, 'bilibili', true)
       }
 
       const json = (await response.json()) as any
 
       if (json.code === -352) {
-        throw new Error('Request rate too high, please try again later')
+        throw new AdapterError('RATE_LIMITED', 'Request rate too high, please try again later', 'bilibili', true)
       }
       if (json.code === -412) {
-        throw new Error('Access denied, please verify Cookie')
+        throw new AdapterError('ACCESS_DENIED', 'Access denied, please verify Cookie', 'bilibili')
       }
       if (json.code === -509) {
-        throw new Error('Bilibili rate limited, please try again later')
+        throw new AdapterError('RATE_LIMITED', 'Bilibili rate limited, please try again later', 'bilibili', true)
       }
       if (json.code === -404 || json.code === 12002) {
-        throw new Error('Video not found')
+        throw new AdapterError('NOT_FOUND', 'Video not found', 'bilibili')
       }
 
       return json as T
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {
-        throw new Error('Request timed out, please check your network')
+        throw new AdapterError('TIMEOUT', 'Request timed out, please check your network', 'bilibili', true)
       }
-      throw e
+      throw asAdapterError(e, 'bilibili')
     } finally {
       clearTimeout(timer)
     }
@@ -149,7 +150,7 @@ export class BilibiliClient {
         return { bvid: bvMatch[0] }
       }
 
-      throw new Error('Could not resolve audio page to video BV')
+      throw new AdapterError('NOT_FOUND', 'Could not resolve audio page to video BV', 'bilibili')
     } finally {
       clearTimeout(timer)
     }
@@ -174,7 +175,7 @@ export class BilibiliClient {
       if (bvMatch) return bvMatch[0]
       if (avMatch) return `av${avMatch[1]}`
 
-      throw new Error('Could not resolve short link')
+      throw new AdapterError('NOT_FOUND', 'Could not resolve short link', 'bilibili')
     } finally {
       clearTimeout(timer)
     }

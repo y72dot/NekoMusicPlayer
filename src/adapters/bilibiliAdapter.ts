@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
 import * as mm from 'music-metadata'
 import { toBilibiliCdnProxyUrl } from '@/config/proxy'
+import { AdapterError } from '@/adapters/adapterError'
 
 const BILIBILI_URL_PATTERN = /bilibili\.com\/video\/([a-zA-Z0-9]+)/
 const BV_PATTERN = /^BV[a-zA-Z0-9]{10}$/
@@ -24,6 +25,12 @@ const QUALITY_MAP: Record<string, number> = {
 class BilibiliAdapter implements SourceAdapter {
   id = 'bilibili'
   name = 'Bilibili'
+  capabilities = { local: false, authentication: 'optional', batchResolve: true, cacheable: true } as const
+
+  async checkHealth() {
+    const authenticated = Boolean(useSettingsStore().settings.bilibiliSessdata)
+    return { status: 'available', authenticated, checkedAt: Date.now(), message: authenticated ? undefined : 'Limited quality without Cookie' } as const
+  }
 
   canResolve(input: unknown): boolean {
     if (typeof input === 'string') {
@@ -84,7 +91,7 @@ class BilibiliAdapter implements SourceAdapter {
       return { type: 'au', value: auMatch[1] }
     }
 
-    throw new Error(`Cannot parse Bilibili URL: ${input}`)
+    throw new AdapterError('INVALID_INPUT', `Cannot parse Bilibili URL: ${input}`, this.id)
   }
 
   async resolve(input: unknown): Promise<Track[]> {
@@ -116,14 +123,14 @@ class BilibiliAdapter implements SourceAdapter {
           // Convert aid to bvid by fetching video info
           const audioInfo = await client.getAudioInfo(parsed.value)
           if (audioInfo.code !== 0 || !audioInfo.data) {
-            throw new Error(`Video not found (aid: ${parsed.value})`)
+            throw new AdapterError('NOT_FOUND', `Video not found (aid: ${parsed.value})`, this.id)
           }
           parsed = { type: 'bvid', value: audioInfo.data.bvid }
         }
 
         const videoInfo = await client.getVideoInfo(parsed.value)
         if (videoInfo.code !== 0 || !videoInfo.data) {
-          throw new Error(`Video not found (BV: ${parsed.value})`)
+          throw new AdapterError('NOT_FOUND', `Video not found (BV: ${parsed.value})`, this.id)
         }
 
         const video = videoInfo.data
@@ -160,7 +167,7 @@ class BilibiliAdapter implements SourceAdapter {
     while (hasMore) {
       const favList = await client.getFavList(uid, fid, page)
       if (favList.code !== 0 || !favList.data) {
-        throw new Error(`Favorite list not found (fid: ${fid})`)
+        throw new AdapterError('NOT_FOUND', `Favorite list not found (fid: ${fid})`, this.id)
       }
 
       for (const item of favList.data.medias) {
@@ -209,12 +216,12 @@ class BilibiliAdapter implements SourceAdapter {
 
     const playurlData = await client.getPlayurl(resourceId, cid, effectiveQuality)
     if (playurlData.code !== 0 || !playurlData.data) {
-      throw new Error(`Failed to get playback URL (BV: ${resourceId})`)
+      throw new AdapterError('NOT_FOUND', `Failed to get playback URL (BV: ${resourceId})`, this.id)
     }
 
     const dash = playurlData.data.dash
     if (!dash || !dash.audio || dash.audio.length === 0) {
-      throw new Error('This video has no playable audio stream')
+      throw new AdapterError('NO_AUDIO', 'This video has no playable audio stream', this.id)
     }
 
     const audioStream = dash.audio[0]
@@ -275,10 +282,10 @@ class BilibiliAdapter implements SourceAdapter {
 
     // Strategy B: fetch through the allowlisted same-origin proxy.
     const proxiedUrl = this.rewriteCdnUrl(cdnUrl)
-    if (proxiedUrl === cdnUrl) throw new Error('CDN host is not allowlisted')
+    if (proxiedUrl === cdnUrl) throw new AdapterError('ACCESS_DENIED', 'CDN host is not allowlisted', this.id)
     const response = await fetch(proxiedUrl)
     if (!response.ok) {
-      throw new Error(`CDN request failed: ${response.status}`)
+      throw new AdapterError('PROXY_UNAVAILABLE', `CDN request failed: ${response.status}`, this.id, true)
     }
     return await response.blob()
   }

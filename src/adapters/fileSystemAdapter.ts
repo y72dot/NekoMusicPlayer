@@ -3,12 +3,15 @@ import type { Track } from '@/models/track'
 import { setBlob, getBlob } from '@/services/db'
 import { UriResolver } from '@/core/uriResolver'
 import * as mm from 'music-metadata'
+import { AdapterError } from '@/adapters/adapterError'
 
 const MAX_METADATA_SIZE = 100 * 1024 * 1024 // 100MB
 
 class FileSystemAdapter implements SourceAdapter {
   id = 'fs'
   name = 'File System'
+  capabilities = { local: true, authentication: 'none', batchResolve: true, cacheable: false } as const
+  async checkHealth() { return { status: 'available', authenticated: true, checkedAt: Date.now() } as const }
 
   canResolve(input: unknown): boolean {
     if (Array.isArray(input)) return input.every(x => x instanceof File)
@@ -109,13 +112,13 @@ class FileSystemAdapter implements SourceAdapter {
     if (params.type === 'cover' || resourceId.startsWith('cover:')) {
       const blob = await getBlob(resourceId)
       if (!blob) {
-        throw new Error(`Cover blob not found: ${resourceId}`)
+        throw new AdapterError('NOT_FOUND', `Cover blob not found: ${resourceId}`, this.id)
       }
       return { url: blob }
     }
     const blob = await getBlob(resourceId)
     if (!blob) {
-      throw new Error(`File blob not found: ${resourceId}`)
+      throw new AdapterError('NOT_FOUND', `File blob not found: ${resourceId}`, this.id)
     }
     return { url: blob }
   }

@@ -63,6 +63,25 @@
         <button class="danger" @click="clearBilibili">{{ $t('settings.security.clearBilibili') }}</button>
       </section>
 
+      <section class="section">
+        <h3>{{ $t('settings.sources.title') }}</h3>
+        <p class="desc">{{ $t('settings.sources.description') }}</p>
+        <div v-for="adapter in adapters" :key="adapter.id" class="source-health">
+          <div>
+            <strong>{{ adapter.name }}</strong>
+            <span class="capabilities">{{ capabilityLabel(adapter.capabilities) }}</span>
+          </div>
+          <span v-if="adapterHealth[adapter.id]" class="health-status" :class="adapterHealth[adapter.id].status">
+            {{ $t(`settings.sources.${adapterHealth[adapter.id].status}`) }}
+            <small v-if="adapterHealth[adapter.id].message">{{ adapterHealth[adapter.id].message }}</small>
+          </span>
+          <span v-else class="health-status">{{ $t('settings.sources.unchecked') }}</span>
+        </div>
+        <button :disabled="checkingSources" @click="checkSources">
+          {{ checkingSources ? $t('settings.sources.checking') : $t('settings.sources.check') }}
+        </button>
+      </section>
+
       <!-- Data Management -->
       <section class="section">
         <h3>{{ $t('settings.data.title') }}</h3>
@@ -91,6 +110,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
+import { registry } from '@/adapters/registry'
+import type { AdapterCapabilities, AdapterHealth } from '@/adapters/types'
 
 const store = useSettingsStore()
 const showSecrets = ref(false)
@@ -154,6 +175,9 @@ const cacheStats = ref({ count: 0, size: 0 })
 const cacheBySource = ref<Record<string, { count: number; size: number }>>({})
 const storageEstimate = ref({ usage: 0, quota: 0 })
 const clearing = ref(false)
+const adapters = registry.list()
+const adapterHealth = ref<Record<string, AdapterHealth>>({})
+const checkingSources = ref(false)
 
 onMounted(async () => {
   cacheStats.value = await audioCache.getStats()
@@ -181,6 +205,21 @@ function setCacheLimit(event: Event) {
   store.setCacheLimitMb(Number((event.target as HTMLInputElement).value))
 }
 
+async function checkSources() {
+  checkingSources.value = true
+  try {
+    adapterHealth.value = await registry.checkHealth()
+  } finally {
+    checkingSources.value = false
+  }
+}
+
+function capabilityLabel(capabilities: AdapterCapabilities) {
+  const location = capabilities.local ? 'Local' : 'Online'
+  const auth = capabilities.authentication === 'none' ? 'No login' : `${capabilities.authentication} login`
+  return `${location} · ${auth}`
+}
+
 function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -200,9 +239,16 @@ function formatSize(bytes: number): string {
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 13px; color: #555; }
 .field input, .field select { padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
-.secret-row, .source-cache { display:flex; align-items:center; gap:8px; }
+.secret-row, .source-cache, .source-health { display:flex; align-items:center; gap:8px; }
 .secret-row input { flex:1; min-width:0; }
 .source-cache { justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--color-border); font-size:13px; }
+.source-health { justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--color-border); font-size:13px; }
+.source-health > div { display:flex; flex-direction:column; gap:2px; }
+.capabilities, .health-status small { display:block; color:var(--color-text-muted); font-size:12px; font-weight:400; }
+.health-status { text-align:right; color:var(--color-text-muted); }
+.health-status.available { color:var(--color-success); }
+.health-status.degraded { color:var(--color-warning); }
+.health-status.unavailable { color:var(--color-danger); }
 .danger { color:var(--color-danger); }
 .volume-row { display: flex; align-items: center; gap: 12px; }
 .volume-row input[type="range"] { flex: 1; }

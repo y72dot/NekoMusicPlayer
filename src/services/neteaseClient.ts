@@ -8,6 +8,7 @@ import type {
   NeteaseSearchResult,
 } from '@/models/netease'
 import { API_PATHS, UPSTREAM_COOKIE_HEADER } from '@/config/proxy'
+import { AdapterError, asAdapterError } from '@/adapters/adapterError'
 
 const API_BASE = `${API_PATHS.netease}/weapi`
 const TIMEOUT_MS = 15000
@@ -40,19 +41,19 @@ export class NeteaseClient {
       })
 
       if (response.status === 301 || response.status === 401 || response.status === 403) {
-        throw new Error('Cookie expired, please re-obtain from music.163.com')
+        throw new AdapterError('AUTH_REQUIRED', 'Cookie expired, please re-obtain from music.163.com', 'netease')
       }
 
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+        throw new AdapterError('PROXY_UNAVAILABLE', `Request failed: ${response.status} ${response.statusText}`, 'netease', true)
       }
 
       return (await response.json()) as T
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {
-        throw new Error('Request timed out, please check your network')
+        throw new AdapterError('TIMEOUT', 'Request timed out, please check your network', 'netease', true)
       }
-      throw e
+      throw asAdapterError(e, 'netease')
     } finally {
       clearTimeout(timer)
     }

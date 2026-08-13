@@ -467,6 +467,8 @@ describe('Playback Roundtrip', () => {
       registry.register({
         id: 'test',
         name: 'Test',
+        capabilities: { local: true, authentication: 'none', batchResolve: false, cacheable: true },
+        checkHealth: async () => ({ status: 'available', authenticated: true, checkedAt: Date.now() }),
         canResolve: () => true,
         resolve: async () => [],
         loadByUri: async () => {
@@ -492,6 +494,8 @@ describe('Playback Roundtrip', () => {
       registry.register({
         id: 'string-test',
         name: 'String Test',
+        capabilities: { local: false, authentication: 'none', batchResolve: false, cacheable: false },
+        checkHealth: async () => ({ status: 'available', authenticated: true, checkedAt: Date.now() }),
         canResolve: () => true,
         resolve: async () => [],
         loadByUri: async () => ({ url: streamUrl }),
@@ -515,6 +519,8 @@ describe('Playback Roundtrip', () => {
       registry.register({
         id: 'error',
         name: 'Error Test',
+        capabilities: { local: false, authentication: 'none', batchResolve: false, cacheable: false },
+        checkHealth: async () => ({ status: 'unavailable', authenticated: false, checkedAt: Date.now() }),
         canResolve: () => true,
         resolve: async () => [],
         loadByUri: async () => {

@@ -84,6 +84,7 @@ import { usePlaylistsStore } from '@/store/playlists'
 import { useToastStore } from '@/store/toast'
 import { useSettingsStore } from '@/store/settings'
 import { registry } from '@/adapters/registry'
+import { AdapterError } from '@/adapters/adapterError'
 
 const { t } = useI18n()
 const playlists = usePlaylistsStore()
@@ -140,7 +141,13 @@ async function importBilibili() {
     bilibiliText.value = ''
     toast.success(t('import.success', { count: tracks.length }))
   } catch (e: any) {
-    console.error('Failed to import from Bilibili:', e)
+    if (e instanceof AdapterError) {
+      const key: Partial<Record<typeof e.code, string>> = {
+        AUTH_REQUIRED: 'toast.bilibiliCookieExpired', RATE_LIMITED: 'toast.bilibiliRateLimit', ACCESS_DENIED: 'toast.bilibiliAccessDenied', NOT_FOUND: 'toast.bilibiliNotFound', NO_AUDIO: 'toast.bilibiliNoAudio', TIMEOUT: 'toast.bilibiliTimeout',
+      }
+      toast.error(key[e.code] ? t(key[e.code]!) : e.message)
+      return
+    }
     const msg = e?.message || String(e)
     if (/cookie expired/i.test(msg)) {
       toast.error(t('toast.bilibiliCookieExpired'))
@@ -217,7 +224,11 @@ async function importNetease() {
     neteaseText.value = ''
     toast.success(t('import.success', { count: tracks.length }))
   } catch (e: any) {
-    console.error('Failed to import from Netease:', e)
+    if (e instanceof AdapterError) {
+      const key: Partial<Record<typeof e.code, string>> = { AUTH_REQUIRED: 'toast.neteaseCookieExpired', COPYRIGHT_RESTRICTED: 'toast.neteaseCopyright', TIMEOUT: 'toast.neteaseTimeout', NOT_FOUND: 'toast.neteaseNotFound' }
+      toast.error(key[e.code] ? t(key[e.code]!) : e.message)
+      return
+    }
     const msg = e?.message || String(e)
     if (/cookie/i.test(msg)) {
       toast.error(t('toast.neteaseCookieExpired'))

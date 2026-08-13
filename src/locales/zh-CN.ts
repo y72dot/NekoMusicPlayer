@@ -154,6 +154,12 @@ export default {
       description: '配置 Cookie 后可获取高品质音源（320K）。',
     },
     security: { show: '显示', hide: '隐藏', clearNetease: '清除网易云凭据', clearBilibili: '清除 B站凭据' },
+    sources: {
+      title: '音乐来源',
+      description: '查看来源能力并检查当前浏览器配置是否可用。',
+      check: '检查来源', checking: '检查中...', unchecked: '尚未检查',
+      available: '可用', degraded: '部分可用', unavailable: '不可用',
+    },
     data: {
       title: '数据管理',
       clearCache: '清除缓存',
