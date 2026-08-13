@@ -22,6 +22,8 @@ vi.mock('@/services/db', () => ({
       if (key.startsWith(prefix)) dbBlobStore.delete(key)
     }
   }),
+  getKv: vi.fn(async (key: string) => kvStore.get(key)),
+  setKv: vi.fn(async (key: string, value: unknown) => { kvStore.set(key, value) }),
   setLibrary: vi.fn(async () => {}),
   getLibrary: vi.fn(async () => undefined),
   setPlaylists: vi.fn(async () => {}),
@@ -332,6 +334,20 @@ describe('audioCache', () => {
 
       // All blobs should be removed
       expect(dbBlobStore.size).toBe(0)
+    })
+
+    it('4.5 reports and clears cache entries by source', async () => {
+      await audioCache.set('neko://a/track/1', makeBlob('aa'), 'a')
+      await audioCache.set('neko://a/track/2', makeBlob('bbb'), 'a')
+      await audioCache.set('neko://b/track/3', makeBlob('c'), 'b')
+
+      expect(await audioCache.getStatsBySource()).toEqual({
+        a: { count: 2, size: 5 },
+        b: { count: 1, size: 1 },
+      })
+
+      await audioCache.clearSource('a')
+      expect(await audioCache.getStatsBySource()).toEqual({ b: { count: 1, size: 1 } })
     })
   })
 })

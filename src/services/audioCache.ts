@@ -1,22 +1,22 @@
-import { setBlob, getBlob, deleteBlob, getBlobStatsByPrefix, clearBlobsByPrefix } from '@/services/db'
+import { setBlob, getBlob, deleteBlob, getBlobStatsByPrefix, clearBlobsByPrefix, getKv, setKv } from '@/services/db'
 import { createLogger } from '@/services/logger'
 
 const CACHE_PREFIX = 'audio:'
-const MAX_TOTAL_SIZE = 500 * 1024 * 1024  // 500MB
+const DEFAULT_MAX_TOTAL_SIZE = 500 * 1024 * 1024
 const MAX_ENTRIES = 100
 const TTL_MS = 7 * 24 * 60 * 60 * 1000    // 7 days
 const META_KEY = 'audio-cache-meta'
 
 const logger = createLogger('AudioCache')
 
-interface CacheEntry {
+export interface CacheEntry {
   size: number
   cachedAt: number
   lastAccess: number
   sourceId: string
 }
 
-interface CacheMeta {
+export interface CacheMeta {
   entries: Record<string, CacheEntry>
   totalSize: number
 }
@@ -27,20 +27,7 @@ function emptyMeta(): CacheMeta {
 
 async function loadMeta(): Promise<CacheMeta> {
   try {
-    const db = await openDb()
-    return new Promise<CacheMeta>((resolve) => {
-      const tx = db.transaction('kv', 'readonly')
-      const store = tx.objectStore('kv')
-      const req = store.get(META_KEY)
-      req.onsuccess = () => {
-        const result = req.result as CacheMeta | undefined
-        resolve(result || emptyMeta())
-      }
-      req.onerror = () => {
-        logger.warn('loadMeta error', req.error)
-        resolve(emptyMeta())
-      }
-    })
+    return (await getKv<CacheMeta>(META_KEY)) || emptyMeta()
   } catch {
     return emptyMeta()
   }
@@ -48,47 +35,23 @@ async function loadMeta(): Promise<CacheMeta> {
 
 async function saveMeta(meta: CacheMeta): Promise<void> {
   try {
-    await withKvStore('readwrite', store => { store.put(meta, META_KEY) })
+    await setKv(META_KEY, meta)
   } catch (e) {
     logger.warn('saveMeta error', e)
   }
 }
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('neko-music', 3)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv')
-      if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs')
-    }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
-}
-
-async function withKvStore(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => void): Promise<void> {
-  const db = await openDb()
-  return new Promise<void>((resolve, reject) => {
-    const tx = db.transaction('kv', mode)
-    const store = tx.objectStore('kv')
-    fn(store)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-}
-
-async function evictIfNeeded(meta: CacheMeta): Promise<void> {
+async function evictIfNeeded(meta: CacheMeta, maxTotalSize = DEFAULT_MAX_TOTAL_SIZE): Promise<void> {
   let { entries, totalSize } = meta
   let count = Object.keys(entries).length
 
-  if (totalSize <= MAX_TOTAL_SIZE && count <= MAX_ENTRIES) return
+  if (totalSize <= maxTotalSize && count <= MAX_ENTRIES) return
 
   // Sort by lastAccess ascending (oldest first)
   const sorted = Object.entries(entries).sort((a, b) => a[1].lastAccess - b[1].lastAccess)
 
   for (const [key, entry] of sorted) {
-    if (totalSize <= MAX_TOTAL_SIZE && count <= MAX_ENTRIES) break
+    if (totalSize <= maxTotalSize && count <= MAX_ENTRIES) break
 
     // Delete blob from IndexedDB
     try {
@@ -155,7 +118,7 @@ export const audioCache = {
     return blob
   },
 
-  async set(uri: string, blob: Blob, sourceId: string): Promise<void> {
+  async set(uri: string, blob: Blob, sourceId: string, maxTotalSize = DEFAULT_MAX_TOTAL_SIZE): Promise<void> {
     const key = CACHE_PREFIX + uri
     await setBlob(key, blob)
     const meta = await loadMeta()
@@ -174,7 +137,7 @@ export const audioCache = {
     }
     meta.totalSize += blob.size
     await saveMeta(meta)
-    await evictIfNeeded(meta)
+    await evictIfNeeded(meta, maxTotalSize)
   },
 
   async remove(uri: string): Promise<void> {
@@ -200,6 +163,28 @@ export const audioCache = {
 
   async getStats(): Promise<{ count: number; size: number }> {
     return getBlobStatsByPrefix(CACHE_PREFIX)
+  },
+
+  async getStatsBySource(): Promise<Record<string, { count: number; size: number }>> {
+    const meta = await loadMeta()
+    const result: Record<string, { count: number; size: number }> = {}
+    for (const entry of Object.values(meta.entries)) {
+      const item = result[entry.sourceId] ||= { count: 0, size: 0 }
+      item.count++
+      item.size += entry.size
+    }
+    return result
+  },
+
+  async clearSource(sourceId: string): Promise<void> {
+    const meta = await loadMeta()
+    for (const [key, entry] of Object.entries(meta.entries)) {
+      if (entry.sourceId !== sourceId) continue
+      await deleteBlob(key).catch(() => {})
+      meta.totalSize = Math.max(0, meta.totalSize - entry.size)
+      delete meta.entries[key]
+    }
+    await saveMeta(meta)
   },
 
   async trackExisting(key: string, size: number, sourceId: string): Promise<void> {

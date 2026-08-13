@@ -153,6 +153,7 @@ export default {
       title: 'B站',
       description: '配置 Cookie 后可获取高品质音源（320K）。',
     },
+    security: { show: '显示', hide: '隐藏', clearNetease: '清除网易云凭据', clearBilibili: '清除 B站凭据' },
     data: {
       title: '数据管理',
       clearCache: '清除缓存',
@@ -161,6 +162,9 @@ export default {
       cacheInfo: '{count} 个文件，共 {size}',
       confirmClear: '确定要清除所有缓存的音频文件吗？',
       noCache: '暂无缓存文件',
+      storageUsage: '浏览器存储：已用 {used} / 配额 {quota}',
+      cacheLimit: '音频缓存上限（MB）',
+      clearSource: '清除此来源',
     },
   },
 }

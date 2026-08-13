@@ -1,36 +1,54 @@
 import { createLogger } from '@/services/logger'
-const DB_NAME = 'neko-music'
-const DB_VERSION = 3
-const STORE = 'kv'
-const BLOB_STORE = 'blobs'
+export const DB_NAME = 'neko-music'
+export const DB_VERSION = 3
+export const KV_STORE = 'kv'
+export const BLOB_STORE = 'blobs'
 const logger = createLogger('IndexedDB')
 const LS_KEY_PLAYLISTS = 'neko.playlists.v1'
 const LS_KEY_LIBRARY = 'neko.library.v1'
 const LS_KEY_CURRENT_ID = 'neko.currentPlaylistId.v1'
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+let databasePromise: Promise<IDBDatabase> | undefined
+
+export function openNekoDb(): Promise<IDBDatabase> {
+  if (databasePromise) return databasePromise
+  databasePromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       logger.info('onupgradeneeded', { version: DB_VERSION })
       const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE)
+      if (!db.objectStoreNames.contains(KV_STORE)) db.createObjectStore(KV_STORE)
       if (!db.objectStoreNames.contains(BLOB_STORE)) db.createObjectStore(BLOB_STORE)
     }
     req.onsuccess = () => { logger.info('open success'); resolve(req.result) }
-    req.onerror = () => { logger.error('open error', req.error); reject(req.error) }
+    req.onerror = () => { databasePromise = undefined; logger.error('open error', req.error); reject(req.error) }
+    req.onblocked = () => { databasePromise = undefined; reject(new Error('Database upgrade blocked by another tab')) }
   })
+  return databasePromise
 }
 
 async function withStore(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => void) {
-  const db = await openDb()
+  const db = await openNekoDb()
   return new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, mode)
-    const store = tx.objectStore(STORE)
+    const tx = db.transaction(KV_STORE, mode)
+    const store = tx.objectStore(KV_STORE)
     logger.info('transaction begin', { mode })
     fn(store)
     tx.oncomplete = () => { logger.info('transaction complete', { mode }); resolve() }
     tx.onerror = () => { logger.error('transaction error', tx.error); reject(tx.error) }
+  })
+}
+
+export async function setKv(key: string, value: unknown): Promise<void> {
+  await withStore('readwrite', store => { store.put(value, key) })
+}
+
+export async function getKv<T>(key: string): Promise<T | undefined> {
+  const db = await openNekoDb()
+  return new Promise<T | undefined>((resolve, reject) => {
+    const request = db.transaction(KV_STORE, 'readonly').objectStore(KV_STORE).get(key)
+    request.onsuccess = () => resolve(request.result as T | undefined)
+    request.onerror = () => reject(request.error)
   })
 }
 
@@ -48,10 +66,10 @@ export async function setLibrary(data: unknown) {
 
 export async function getLibrary<T>(): Promise<T | undefined> {
   try {
-    const db = await openDb()
+    const db = await openNekoDb()
     return new Promise<T | undefined>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readonly')
-      const store = tx.objectStore(STORE)
+      const tx = db.transaction(KV_STORE, 'readonly')
+      const store = tx.objectStore(KV_STORE)
       const req = store.get('library')
       req.onsuccess = () => {
         const r = req.result as T | undefined
@@ -100,10 +118,10 @@ export async function setPlaylists(data: unknown) {
 
 export async function getPlaylists<T>(): Promise<T | undefined> {
   try {
-    const db = await openDb()
+    const db = await openNekoDb()
     return new Promise<T | undefined>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readonly')
-      const store = tx.objectStore(STORE)
+      const tx = db.transaction(KV_STORE, 'readonly')
+      const store = tx.objectStore(KV_STORE)
       const req = store.get('playlists')
       req.onsuccess = () => {
         const r = req.result as T | undefined
@@ -149,10 +167,10 @@ export async function setCurrentPlaylistId(id: string) {
 
 export async function getCurrentPlaylistId(): Promise<string | undefined> {
   try {
-    const db = await openDb()
+    const db = await openNekoDb()
     return new Promise<string | undefined>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readonly')
-      const store = tx.objectStore(STORE)
+      const tx = db.transaction(KV_STORE, 'readonly')
+      const store = tx.objectStore(KV_STORE)
       const req = store.get('currentId')
       req.onsuccess = () => {
         const r = req.result as string | undefined
@@ -179,7 +197,7 @@ export async function getCurrentPlaylistId(): Promise<string | undefined> {
 }
 
 export async function setBlob(key: string, blob: Blob) {
-  const db = await openDb()
+  const db = await openNekoDb()
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(BLOB_STORE, 'readwrite')
     const store = tx.objectStore(BLOB_STORE)
@@ -190,7 +208,7 @@ export async function setBlob(key: string, blob: Blob) {
 }
 
 export async function deleteBlob(key: string): Promise<void> {
-  const db = await openDb()
+  const db = await openNekoDb()
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(BLOB_STORE, 'readwrite')
     const store = tx.objectStore(BLOB_STORE)
@@ -201,7 +219,7 @@ export async function deleteBlob(key: string): Promise<void> {
 }
 
 export async function getBlob(key: string): Promise<Blob | undefined> {
-  const db = await openDb()
+  const db = await openNekoDb()
   return new Promise<Blob | undefined>((resolve, reject) => {
     const tx = db.transaction(BLOB_STORE, 'readonly')
     const store = tx.objectStore(BLOB_STORE)
@@ -212,7 +230,7 @@ export async function getBlob(key: string): Promise<Blob | undefined> {
 }
 
 export async function getBlobStatsByPrefix(prefix: string): Promise<{ count: number; size: number }> {
-  const db = await openDb()
+  const db = await openNekoDb()
   return new Promise<{ count: number; size: number }>((resolve, reject) => {
     const tx = db.transaction(BLOB_STORE, 'readonly')
     const store = tx.objectStore(BLOB_STORE)
@@ -237,7 +255,7 @@ export async function getBlobStatsByPrefix(prefix: string): Promise<{ count: num
 }
 
 export async function clearBlobsByPrefix(prefix: string): Promise<void> {
-  const db = await openDb()
+  const db = await openNekoDb()
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(BLOB_STORE, 'readwrite')
     const store = tx.objectStore(BLOB_STORE)

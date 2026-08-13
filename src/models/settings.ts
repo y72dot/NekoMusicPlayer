@@ -8,4 +8,5 @@ export interface Settings {
   bilibiliSessdata: string
   bilibiliCsrf: string
   bilibiliBuvid3: string
+  cacheLimitMb: number
 }

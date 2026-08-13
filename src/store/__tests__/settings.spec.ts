@@ -11,6 +11,7 @@ describe('SettingsStore', () => {
     const settings = useSettingsStore()
     expect(settings.settings.defaultVolume).toBe(0.8)
     expect(settings.settings.playMode).toBe('loop')
+    expect(settings.settings.cacheLimitMb).toBe(500)
   })
 
   it('should set volume', () => {
@@ -63,5 +64,19 @@ describe('SettingsStore', () => {
     const settings = useSettingsStore()
     settings.setBilibiliBuvid3('test-buvid3')
     expect(settings.settings.bilibiliBuvid3).toBe('test-buvid3')
+  })
+
+  it('clamps cache limits and clears credentials by provider', () => {
+    const settings = useSettingsStore()
+    settings.setCacheLimitMb(10)
+    expect(settings.settings.cacheLimitMb).toBe(50)
+    settings.setCacheLimitMb(3000)
+    expect(settings.settings.cacheLimitMb).toBe(2000)
+
+    settings.setNeteaseCookie('secret')
+    settings.setNeteaseCsrf('csrf')
+    settings.clearNeteaseCredentials()
+    expect(settings.settings.neteaseCookie).toBe('')
+    expect(settings.settings.neteaseCsrf).toBe('')
   })
 })

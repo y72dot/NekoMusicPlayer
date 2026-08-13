@@ -32,13 +32,14 @@
         <p class="cookie-guide">{{ $t('import.netease.cookieGuide') }}</p>
         <div class="field">
           <label>{{ $t('import.netease.cookieLabel') }}</label>
-          <input v-model="neteaseCookie" type="text" placeholder="MUSIC_U" />
+          <div class="secret-row"><input v-model="neteaseCookie" :type="showSecrets ? 'text' : 'password'" autocomplete="off" placeholder="MUSIC_U" /><button type="button" @click="showSecrets = !showSecrets">{{ showSecrets ? $t('settings.security.hide') : $t('settings.security.show') }}</button></div>
         </div>
         <div class="field">
           <label>{{ $t('import.netease.csrfLabel') }}</label>
           <input v-model="neteaseCsrf" type="text" placeholder="__csrf" />
         </div>
         <button @click="saveNeteaseCookie">{{ $t('import.netease.cookieSave') }}</button>
+        <button class="danger" @click="clearNetease">{{ $t('settings.security.clearNetease') }}</button>
       </section>
 
       <!-- Bilibili Cookie -->
@@ -48,7 +49,7 @@
         <p class="cookie-guide">{{ $t('import.bilibili.cookieGuide') }}</p>
         <div class="field">
           <label>{{ $t('import.bilibili.cookieLabel') }}</label>
-          <input v-model="bilibiliSessdata" type="text" placeholder="SESSDATA" />
+          <input v-model="bilibiliSessdata" :type="showSecrets ? 'text' : 'password'" autocomplete="off" placeholder="SESSDATA" />
         </div>
         <div class="field">
           <label>{{ $t('import.bilibili.csrfLabel') }}</label>
@@ -59,6 +60,7 @@
           <input v-model="bilibiliBuvid3" type="text" placeholder="buvid3" />
         </div>
         <button @click="saveBilibiliCookie">{{ $t('import.bilibili.cookieSave') }}</button>
+        <button class="danger" @click="clearBilibili">{{ $t('settings.security.clearBilibili') }}</button>
       </section>
 
       <!-- Data Management -->
@@ -68,6 +70,15 @@
           {{ $t('settings.data.cacheInfo', { count: cacheStats.count, size: formatSize(cacheStats.size) }) }}
         </p>
         <p v-else class="desc">{{ $t('settings.data.noCache') }}</p>
+        <p v-if="storageEstimate.quota" class="desc">{{ $t('settings.data.storageUsage', { used: formatSize(storageEstimate.usage), quota: formatSize(storageEstimate.quota) }) }}</p>
+        <div class="field">
+          <label>{{ $t('settings.data.cacheLimit') }}</label>
+          <input type="number" min="50" max="2000" step="50" :value="store.settings.cacheLimitMb" @change="setCacheLimit" />
+        </div>
+        <div v-for="(stats, source) in cacheBySource" :key="source" class="source-cache">
+          <span>{{ source }} · {{ stats.count }} · {{ formatSize(stats.size) }}</span>
+          <button @click="clearSource(String(source))">{{ $t('settings.data.clearSource') }}</button>
+        </div>
         <button v-if="!clearing" @click="clearCache">{{ $t('settings.data.clearCache') }}</button>
         <button v-else disabled>{{ $t('settings.data.clearing') }}</button>
       </section>
@@ -82,6 +93,7 @@ import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
 
 const store = useSettingsStore()
+const showSecrets = ref(false)
 
 // Playback settings (writable computed)
 const volume = computed({
@@ -124,12 +136,30 @@ function saveBilibiliCookie() {
   store.setBilibiliBuvid3(bilibiliBuvid3.value.trim())
 }
 
+function clearNetease() {
+  store.clearNeteaseCredentials()
+  neteaseCookie.value = ''
+  neteaseCsrf.value = ''
+}
+
+function clearBilibili() {
+  store.clearBilibiliCredentials()
+  bilibiliSessdata.value = ''
+  bilibiliCsrf.value = ''
+  bilibiliBuvid3.value = ''
+}
+
 // Cache management
 const cacheStats = ref({ count: 0, size: 0 })
+const cacheBySource = ref<Record<string, { count: number; size: number }>>({})
+const storageEstimate = ref({ usage: 0, quota: 0 })
 const clearing = ref(false)
 
 onMounted(async () => {
   cacheStats.value = await audioCache.getStats()
+  cacheBySource.value = await audioCache.getStatsBySource()
+  const estimate = await navigator.storage?.estimate?.()
+  storageEstimate.value = { usage: estimate?.usage || 0, quota: estimate?.quota || 0 }
 })
 
 async function clearCache() {
@@ -137,7 +167,18 @@ async function clearCache() {
   clearing.value = true
   await audioCache.clear()
   cacheStats.value = await audioCache.getStats()
+  cacheBySource.value = {}
   clearing.value = false
+}
+
+async function clearSource(sourceId: string) {
+  await audioCache.clearSource(sourceId)
+  cacheStats.value = await audioCache.getStats()
+  cacheBySource.value = await audioCache.getStatsBySource()
+}
+
+function setCacheLimit(event: Event) {
+  store.setCacheLimitMb(Number((event.target as HTMLInputElement).value))
 }
 
 function formatSize(bytes: number): string {
@@ -159,6 +200,10 @@ function formatSize(bytes: number): string {
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 13px; color: #555; }
 .field input, .field select { padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
+.secret-row, .source-cache { display:flex; align-items:center; gap:8px; }
+.secret-row input { flex:1; min-width:0; }
+.source-cache { justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--color-border); font-size:13px; }
+.danger { color:var(--color-danger); }
 .volume-row { display: flex; align-items: center; gap: 12px; }
 .volume-row input[type="range"] { flex: 1; }
 .volume-val { font-size: 14px; color: #555; min-width: 40px; }

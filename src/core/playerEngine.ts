@@ -3,6 +3,7 @@ import { UriResolver } from '@/core/uriResolver'
 import { audioCache } from '@/services/audioCache'
 import { createLogger } from '@/services/logger'
 import { mediaElementError, normalizePlaybackError, PlaybackError } from '@/core/playbackError'
+import { useSettingsStore } from '@/store/settings'
 
 export type PlaybackStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
 
@@ -145,7 +146,8 @@ class PlayerEngineImpl extends EventEmitter {
 
     // Cache Blob for future playback (skip fs tracks, already stored by adapter)
       if (src instanceof Blob && track.sourceId !== 'fs') {
-        audioCache.set(track.uri, src, track.sourceId).catch(() => {})
+        const limitMb = useSettingsStore().settings.cacheLimitMb || 500
+        audioCache.set(track.uri, src, track.sourceId, limitMb * 1024 * 1024).catch(() => {})
       }
 
     // Set new source

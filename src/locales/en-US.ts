@@ -153,6 +153,7 @@ export default {
       title: 'Bilibili',
       description: 'Configure Cookie for higher quality audio (320K).',
     },
+    security: { show: 'Show', hide: 'Hide', clearNetease: 'Clear NetEase credentials', clearBilibili: 'Clear Bilibili credentials' },
     data: {
       title: 'Data Management',
       clearCache: 'Clear Cache',
@@ -161,6 +162,9 @@ export default {
       cacheInfo: '{count} files, {size}',
       confirmClear: 'Are you sure you want to clear all cached audio files?',
       noCache: 'No cached files',
+      storageUsage: 'Browser storage: {used} used of {quota}',
+      cacheLimit: 'Audio cache limit (MB)',
+      clearSource: 'Clear source',
     },
   },
 }
