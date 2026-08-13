@@ -6,8 +6,13 @@
            selected: selection.isSelected(t.id)
          }" 
          draggable="true"
+         role="button"
+         tabindex="0"
+         :aria-label="`${t.title}, ${t.artist || $t('track.unknownArtist')}`"
          @dragstart="onDragStart(i)" @dragover.prevent @drop="onDrop(i)" 
-         @click="handleRowClick(t, i)">
+         @click="handleRowClick(t, i)"
+         @keydown.enter="handleRowClick(t, i)"
+         @keydown.space.prevent="handleRowClick(t, i)">
       <span class="index">
         <span v-if="player.current?.id === t.id">🎵</span>
         <span v-else-if="selection.isSelected(t.id)">☑️</span>
@@ -77,15 +82,21 @@ async function play(i: number) {
 </script>
 
 <style scoped>
-.row { display:flex; align-items:center; gap:12px; padding:8px; border-bottom:1px solid #eee; cursor:pointer; transition: background-color 0.2s; }
+.row { display:flex; align-items:center; gap:12px; min-height:62px; padding:9px 16px; border-bottom:1px solid var(--color-border); cursor:pointer; transition: background-color 0.2s; }
 .row:hover { background:#fafafa }
-.row.active { background-color: #e6f7ff; }
+.row.active { background-color: var(--color-primary-soft); }
 .row.selected { background-color: #f0f0f0; }
 .row.selected.active { background-color: #d6e4ff; } /* Selected AND playing */
 .index { width:24px; color:#888; display: flex; justify-content: center; }
 .meta { display:flex; flex-direction:column }
 .title { font-weight:600 }
-.title.active-text { color: #1890ff; }
+.title.active-text { color: var(--color-primary-strong); }
 .sub { font-size:12px; color:#666 }
 .actions { margin-left: auto; }
+@media (max-width:720px) {
+  .row { gap:9px; padding:8px 12px; }
+  .index { display:none; }
+  .meta { min-width:0; }
+  .title, .sub { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+}
 </style>

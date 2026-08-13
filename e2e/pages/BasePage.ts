@@ -44,7 +44,7 @@ export class BasePage {
     this.seekBar = page.locator('.bar input[type="range"]').nth(0)
     this.volumeSlider = page.locator('.bar input[type="range"]').nth(1)
     this.modeSelect = page.locator('.bar select')
-    this.timeText = page.locator('.bar span')
+    this.timeText = page.locator('.bar .time-text')
 
     // Toast selectors
     this.toastContainer = page.locator('.toast-container')

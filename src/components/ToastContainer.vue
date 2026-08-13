@@ -1,12 +1,13 @@
 <template>
   <Teleport to="body">
-    <div class="toast-container">
+    <div class="toast-container" aria-live="polite" aria-atomic="false">
       <TransitionGroup name="toast">
         <div
           v-for="item in toast.items"
           :key="item.id"
           class="toast-item"
           :class="item.type"
+          :role="item.type === 'error' ? 'alert' : 'status'"
           @click="toast.remove(item.id)"
         >
           <span class="icon">{{ icons[item.type] }}</span>

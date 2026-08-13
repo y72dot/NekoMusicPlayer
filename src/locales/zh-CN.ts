@@ -3,10 +3,14 @@ export default {
     title: 'Neko Music Player',
   },
   nav: {
+    main: '主导航',
     allSongs: '全部歌曲',
     nowPlaying: '正在播放',
     importMusic: '导入音乐',
     settings: '设置',
+  },
+  controls: {
+    player: '播放控制', nothingPlaying: '尚未播放', previous: '上一首', next: '下一首', play: '播放', pause: '暂停', seek: '播放进度', volume: '音量', mode: '播放模式',
   },
   library: {
     title: '全部歌曲',

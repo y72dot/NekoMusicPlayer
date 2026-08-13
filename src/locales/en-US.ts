@@ -3,10 +3,14 @@ export default {
     title: 'Neko Music Player',
   },
   nav: {
+    main: 'Main navigation',
     allSongs: 'All Songs',
     nowPlaying: 'Now Playing',
     importMusic: 'Import Music',
     settings: 'Settings',
+  },
+  controls: {
+    player: 'Playback controls', nothingPlaying: 'Nothing playing', previous: 'Previous', next: 'Next', play: 'Play', pause: 'Pause', seek: 'Playback progress', volume: 'Volume', mode: 'Playback mode',
   },
   library: {
     title: 'All Songs',

@@ -8,6 +8,7 @@ import { registerAdapters } from '@/adapters/register'
 import { setupPlayerBridge } from '@/services/playerBridge'
 import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
+import '@/styles/tokens.css'
 
 const app = createApp(App)
 const pinia = createPinia()

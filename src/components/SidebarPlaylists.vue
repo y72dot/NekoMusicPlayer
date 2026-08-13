@@ -1,13 +1,14 @@
 <template>
-  <aside class="side">
-    <nav class="nav">
-      <router-link to="/library" class="nav-item" active-class="active">🎵 {{ $t('nav.allSongs') }}</router-link>
-      <router-link to="/player" class="nav-item" active-class="active">🎧 {{ $t('nav.nowPlaying') }}</router-link>
-      <router-link to="/import" class="nav-item" active-class="active">📥 {{ $t('nav.importMusic') }}</router-link>
-      <router-link to="/settings" class="nav-item" active-class="active">⚙ {{ $t('nav.settings') }}</router-link>
+  <aside class="side" :aria-label="$t('nav.main')">
+    <div class="brand" aria-hidden="true"><span class="brand-mark">N</span><span>NekoMusic</span></div>
+    <nav class="nav" :aria-label="$t('nav.main')">
+      <router-link to="/library" class="nav-item" active-class="active"><span aria-hidden="true">♫</span><span>{{ $t('nav.allSongs') }}</span></router-link>
+      <router-link to="/player" class="nav-item" active-class="active"><span aria-hidden="true">▶</span><span>{{ $t('nav.nowPlaying') }}</span></router-link>
+      <router-link to="/import" class="nav-item" active-class="active"><span aria-hidden="true">＋</span><span>{{ $t('nav.importMusic') }}</span></router-link>
+      <router-link to="/settings" class="nav-item" active-class="active"><span aria-hidden="true">⚙</span><span>{{ $t('nav.settings') }}</span></router-link>
     </nav>
     <div class="sep"></div>
-    <div class="top">
+    <div class="top playlist-heading">
       <strong>{{ $t('playlist.title') }}</strong>
       <button @click="create">{{ $t('playlist.new') }}</button>
     </div>
@@ -47,15 +48,27 @@ function openPlaylist(id: string) {
 </script>
 
 <style scoped>
-.side { width:220px; border-right:1px solid #ddd; padding:8px; display:flex; flex-direction:column; gap:8px }
+.side { width:100%; height:100%; padding:16px 12px; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+.brand { display:flex; align-items:center; gap:10px; padding:4px 8px 14px; font-weight:750; letter-spacing:-0.02em; }
+.brand-mark { display:grid; place-items:center; width:32px; height:32px; border-radius:10px; color:#fff; background:linear-gradient(135deg,var(--color-primary),#9e74ff); box-shadow:var(--shadow-sm); }
 .top { display:flex; justify-content:space-between; align-items:center }
-ul { list-style:none; padding:0; margin:0 }
-li { padding:6px 8px; border-radius:4px; cursor:pointer }
-li:hover { background: #f5f5f5; }
-li.active { background:#f0f0f0; font-weight: bold; }
+ul { list-style:none; padding:0; margin:0; overflow-y:auto; }
+li { padding:9px 10px; border-radius:var(--radius-sm); cursor:pointer }
+li:hover { background: var(--color-surface-muted); }
+li.active { background:var(--color-primary-soft); color:var(--color-primary-strong); font-weight: 650; }
 .nav { display:flex; flex-direction:column; gap:4px }
-.nav-item { padding:8px; text-decoration:none; color:#333; border-radius:4px }
-.nav-item:hover { background:#f5f5f5 }
-.nav-item.active { background:#e6f7ff; color:#1890ff; font-weight:bold }
-.sep { height:1px; background:#eee; margin:8px 0 }
+.nav-item { min-height:44px; display:flex; align-items:center; gap:11px; padding:10px 12px; text-decoration:none; color:var(--color-text-muted); border-radius:var(--radius-sm) }
+.nav-item > span:first-child { width:20px; text-align:center; font-size:17px; }
+.nav-item:hover { background:var(--color-surface-muted); color:var(--color-text); }
+.nav-item.active { background:var(--color-primary-soft); color:var(--color-primary-strong); font-weight:700 }
+.sep { height:1px; background:var(--color-border); margin:8px 0 }
+.top button { border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-primary-strong); padding:4px 10px; cursor:pointer; }
+
+@media (max-width:720px) {
+  .side { padding:6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); overflow:visible; }
+  .brand, .sep, .playlist-heading, ul { display:none; }
+  .nav { flex-direction:row; justify-content:space-around; gap:2px; }
+  .nav-item { flex:1; min-width:0; flex-direction:column; justify-content:center; gap:1px; padding:5px 2px; font-size:11px; }
+  .nav-item > span:first-child { font-size:16px; }
+}
 </style>
