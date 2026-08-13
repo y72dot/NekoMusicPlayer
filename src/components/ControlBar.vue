@@ -9,9 +9,9 @@
     </div>
     <div class="transport">
       <div class="transport-buttons">
-        <button class="icon-button" :aria-label="$t('controls.previous')" :title="$t('controls.previous')" :disabled="!player.queue.length" @click="prev"><span aria-hidden="true">⏮</span></button>
+        <button class="icon-button" :aria-label="$t('controls.previous')" :title="$t('controls.previous')" :data-empty="!player.queue.length" @click="prev"><span aria-hidden="true">⏮</span></button>
         <button class="play-button" :aria-label="player.playing ? $t('controls.pause') : $t('controls.play')" :title="player.playing ? $t('controls.pause') : $t('controls.play')" @click="toggle"><span aria-hidden="true">{{ player.playing ? '⏸' : '▶️' }}</span></button>
-        <button class="icon-button" :aria-label="$t('controls.next')" :title="$t('controls.next')" :disabled="!player.queue.length" @click="next"><span aria-hidden="true">⏭</span></button>
+        <button class="icon-button" :aria-label="$t('controls.next')" :title="$t('controls.next')" :data-empty="!player.queue.length" @click="next"><span aria-hidden="true">⏭</span></button>
       </div>
       <div class="progress-row">
         <input :aria-label="$t('controls.seek')" type="range" min="0" :max="Math.max(player.duration, 0)" step="0.1" :value="player.currentTime" :disabled="!player.current" @input="onSeek" />
@@ -67,6 +67,7 @@ function format(s: number) {
 button { display:grid; place-items:center; border:0; background:transparent; color:var(--color-text); cursor:pointer; }
 .icon-button { width:38px; height:38px; }
 .icon-button:hover { background:var(--color-surface-muted); }
+.icon-button[data-empty="true"] { color:var(--color-text-muted); opacity:.55; }
 .play-button { width:44px; height:44px; border-radius:50%; color:#fff; background:var(--color-primary); box-shadow:0 8px 20px rgba(109,93,252,.3); }
 .play-button:hover { background:var(--color-primary-strong); transform:translateY(-1px); }
 .progress-row { width:min(100%,560px); display:grid; grid-template-columns:minmax(80px,1fr) auto; align-items:center; gap:12px; }
