@@ -54,4 +54,31 @@ describe('PlayerEngine (Refactored)', () => {
     
     expect(UriResolver.load).toHaveBeenCalledWith(track.uri)
   })
+
+  it('ignores a stale resolution when a newer track finishes first', async () => {
+    let finishFirst!: (value: { url: string }) => void
+    const first = new Promise<{ url: string }>(resolve => { finishFirst = resolve })
+    vi.mocked(UriResolver.load)
+      .mockReturnValueOnce(first)
+      .mockResolvedValueOnce({ url: 'https://example.com/new.mp3' })
+
+    const oldTrack: Track = { id: 'old', uri: 'neko://test/track/old', title: 'Old', sourceId: 'test', sourceRef: {} }
+    const newTrack: Track = { id: 'new', uri: 'neko://test/track/new', title: 'New', sourceId: 'test', sourceRef: {} }
+    const oldLoad = playerEngine.load(oldTrack)
+    await expect(playerEngine.load(newTrack)).resolves.toBe(true)
+    finishFirst({ url: 'https://example.com/old.mp3' })
+
+    await expect(oldLoad).resolves.toBe(false)
+    expect(playerEngine.currentTrack?.id).toBe('new')
+  })
+
+  it('reports a structured error when the URI cannot be resolved', async () => {
+    vi.mocked(UriResolver.load).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const track: Track = { id: 'offline', uri: 'neko://test/track/offline', title: 'Offline', sourceId: 'test', sourceRef: {} }
+
+    await expect(playerEngine.load(track)).rejects.toMatchObject({
+      code: 'NETWORK', stage: 'resolve', retryable: true,
+    })
+    expect(playerEngine.status).toBe('error')
+  })
 })

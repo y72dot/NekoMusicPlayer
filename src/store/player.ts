@@ -5,6 +5,8 @@ import { useSettingsStore } from '@/store/settings'
 import { usePlaylistsStore } from '@/store/playlists'
 import { useToastStore } from '@/store/toast'
 import { playerEngine } from '@/core/playerEngine'
+import type { PlaybackStatus } from '@/core/playerEngine'
+import { normalizePlaybackError, type PlaybackError } from '@/core/playbackError'
 
 export const usePlayerStore = defineStore('player', {
   state: () => ({
@@ -15,6 +17,9 @@ export const usePlayerStore = defineStore('player', {
     playing: false,
     currentTime: 0,
     duration: 0,
+    status: 'idle' as PlaybackStatus,
+    lastError: undefined as PlaybackError | undefined,
+    failedTrackIds: [] as string[],
   }),
   getters: {
     current(state) {
@@ -24,10 +29,20 @@ export const usePlayerStore = defineStore('player', {
   actions: {
     async setQueue(tracks: Track[], startIndex = 0) {
       this.queue = [...tracks]
-      this.index = startIndex
+      this.index = tracks.length ? Math.max(0, Math.min(startIndex, tracks.length - 1)) : 0
       // persistIndex handled by plugin
       if (this.current) {
-        await playerEngine.load(this.current)
+        await this.loadCurrent()
+      }
+    },
+
+    async loadCurrent(): Promise<boolean> {
+      if (!this.current) return false
+      try {
+        this.lastError = undefined
+        return await playerEngine.load(this.current)
+      } catch {
+        return false
       }
     },
     
@@ -49,12 +64,22 @@ export const usePlayerStore = defineStore('player', {
     
     async play(track?: Track) {
       if (track) {
-        await playerEngine.load(track)
-      } else if (this.current) {
-        if (playerEngine.currentTrack?.id !== this.current.id) {
-           await playerEngine.load(this.current)
+        try {
+          const loaded = await playerEngine.load(track)
+          if (loaded) await playerEngine.play()
+        } catch (cause) {
+          await this.recoverFromError(normalizePlaybackError(cause, 'play'))
         }
-        if (playerEngine.paused) await playerEngine.play()
+      } else if (this.current) {
+        try {
+          if (playerEngine.currentTrack?.id !== this.current.id) {
+            const loaded = await playerEngine.load(this.current)
+            if (!loaded) return
+          }
+          if (playerEngine.paused) await playerEngine.play()
+        } catch (cause) {
+          await this.recoverFromError(normalizePlaybackError(cause, 'play'))
+        }
       } else if (this.queue.length === 0) {
         // Smart Play: queue is empty, try to load from library
         const playlists = usePlaylistsStore()
@@ -86,7 +111,11 @@ export const usePlayerStore = defineStore('player', {
         await this.play()
         return
       }
-      playerEngine.toggle()
+      try {
+        await playerEngine.toggle()
+      } catch (cause) {
+        await this.recoverFromError(normalizePlaybackError(cause, 'play'))
+      }
     },
     
     seek(time: number) {
@@ -105,6 +134,17 @@ export const usePlayerStore = defineStore('player', {
     // Internal state setters called by event listeners
     setPlaying(p: boolean) {
       this.playing = p
+    },
+
+    setStatus(status: PlaybackStatus) {
+      this.status = status
+      if (status !== 'error') this.lastError = undefined
+    },
+
+    setError(error: PlaybackError) {
+      this.lastError = error
+      this.status = 'error'
+      this.playing = false
     },
     
     setProgress(current: number, duration: number) {
@@ -133,6 +173,7 @@ export const usePlayerStore = defineStore('player', {
     },
 
     async onTrackEnded() {
+      this.failedTrackIds = []
       if (this.mode === 'single') {
         if (this.current) {
            playerEngine.seek(0)
@@ -141,6 +182,16 @@ export const usePlayerStore = defineStore('player', {
       } else {
         await this.next()
       }
+    },
+
+    async recoverFromError(error: PlaybackError) {
+      this.setError(error)
+      const current = this.current
+      if (!current || this.queue.length < 2 || error.code === 'AUTOPLAY_BLOCKED') return
+      if (this.failedTrackIds.includes(current.id)) return
+      this.failedTrackIds.push(current.id)
+      if (this.failedTrackIds.length >= this.queue.length) return
+      await this.next()
     },
 
     async playNext(track: Track) {
@@ -171,8 +222,8 @@ export const usePlayerStore = defineStore('player', {
         this.index = nextIndex
         
         if (this.current) {
-          await playerEngine.load(this.current)
-          await playerEngine.play()
+          const loaded = await this.loadCurrent()
+          if (loaded) await playerEngine.play().catch(() => {})
         }
       }
     },
@@ -226,8 +277,9 @@ export const usePlayerStore = defineStore('player', {
            }
            
            if (this.current) {
-             await playerEngine.load(this.current)
-             if (this.playing) await playerEngine.play()
+             const shouldResume = this.playing
+             const loaded = await this.loadCurrent()
+             if (loaded && shouldResume) await playerEngine.play().catch(() => {})
            }
         }
       }
@@ -263,8 +315,9 @@ export const usePlayerStore = defineStore('player', {
         this.index = newIndex
         
         if (this.current) {
-          await playerEngine.load(this.current)
-          if (this.playing) await playerEngine.play()
+          const shouldResume = this.playing
+          const loaded = await this.loadCurrent()
+          if (loaded && shouldResume) await playerEngine.play().catch(() => {})
         }
       } else {
         // Just update index if it shifted

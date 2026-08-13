@@ -522,11 +522,10 @@ describe('Playback Roundtrip', () => {
         },
       })
 
-      await expect(playerEngine.load(track)).resolves.toBeUndefined()
-
-      expect(toastMocks.error).toHaveBeenCalledWith(
-        expect.stringContaining('Simulated adapter failure'),
-      )
+      await expect(playerEngine.load(track)).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        stage: 'resolve',
+      })
     })
   })
 

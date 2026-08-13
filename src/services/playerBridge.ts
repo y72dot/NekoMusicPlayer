@@ -22,9 +22,14 @@ export function setupPlayerBridge() {
     player.onTrackEnded()
   })
 
-  playerEngine.on('error', () => {
-    toast.error('音频播放出错，请检查文件是否有效')
+  playerEngine.on('error', (error) => {
+    const interruptedPlayback = player.playing
+    toast.error(error.message)
+    player.setError(error)
+    if (interruptedPlayback) void player.recoverFromError(error)
   })
+
+  playerEngine.on('statuschange', (status) => player.setStatus(status))
 
   // Sync enriched track metadata to stores
   playerEngine.on('trackenriched', (track) => {

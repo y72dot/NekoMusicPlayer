@@ -3,7 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 
 vi.mock('@/core/playerEngine', () => ({
   playerEngine: {
-    load: vi.fn().mockResolvedValue(undefined),
+    load: vi.fn().mockResolvedValue(true),
     play: vi.fn().mockResolvedValue(undefined),
     pause: vi.fn(),
     toggle: vi.fn(),
@@ -22,6 +22,7 @@ vi.mock('@/core/playerEngine', () => ({
 import { usePlayerStore } from '@/store/player'
 import { playerEngine } from '@/core/playerEngine'
 import type { Track } from '@/models/track'
+import { PlaybackError } from '@/core/playbackError'
 
 function makeTrack(id: string, title: string): Track {
   return { id, uri: `neko://test/track/${id}`, title, sourceId: 'test', sourceRef: {} }
@@ -111,5 +112,22 @@ describe('PlayerStore', () => {
     await player.playNext(newTrack)
     expect(player.index).toBe(1)
     expect(player.queue[1].id).toBe('3')
+  })
+
+  it('skips one failed queue item without looping forever', async () => {
+    const player = usePlayerStore()
+    await player.setQueue([makeTrack('1', 'A'), makeTrack('2', 'B')], 0)
+    await player.recoverFromError(new PlaybackError('SOURCE_UNAVAILABLE', 'resolve', 'unavailable'))
+
+    expect(player.index).toBe(1)
+    expect(player.failedTrackIds).toEqual(['1'])
+  })
+
+  it('does not skip on an autoplay policy error', async () => {
+    const player = usePlayerStore()
+    await player.setQueue([makeTrack('1', 'A'), makeTrack('2', 'B')], 0)
+    await player.recoverFromError(new PlaybackError('AUTOPLAY_BLOCKED', 'play', 'blocked'))
+
+    expect(player.index).toBe(0)
   })
 })

@@ -26,6 +26,7 @@ describe('PlayerBridge', () => {
     expect(mockOn).toHaveBeenCalledWith('pause', expect.any(Function))
     expect(mockOn).toHaveBeenCalledWith('ended', expect.any(Function))
     expect(mockOn).toHaveBeenCalledWith('error', expect.any(Function))
+    expect(mockOn).toHaveBeenCalledWith('statuschange', expect.any(Function))
     expect(mockOn).toHaveBeenCalledWith('volumechange', expect.any(Function))
   })
 

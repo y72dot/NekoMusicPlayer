@@ -1,13 +1,18 @@
 import type { Track } from '@/models/track'
-import { registry } from '@/adapters/registry'
 import { UriResolver } from '@/core/uriResolver'
 import { audioCache } from '@/services/audioCache'
-import { useToastStore } from '@/store/toast'
+import { createLogger } from '@/services/logger'
+import { mediaElementError, normalizePlaybackError, PlaybackError } from '@/core/playbackError'
+
+export type PlaybackStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
+
+const logger = createLogger('PlayerEngine')
 
 type PlayerEvents = {
   timeupdate: { currentTime: number; duration: number }
   ended: void
-  error: Event
+  error: PlaybackError
+  statuschange: PlaybackStatus
   play: void
   pause: void
   volumechange: number
@@ -47,6 +52,8 @@ class PlayerEngineImpl extends EventEmitter {
   private audio = new Audio()
   private currentObjectUrl?: string
   private _track?: Track
+  private loadSequence = 0
+  private _status: PlaybackStatus = 'idle'
 
   constructor() {
     super()
@@ -64,90 +71,110 @@ class PlayerEngineImpl extends EventEmitter {
     this.audio.addEventListener('ended', () => {
       this.emit('ended', undefined)
     })
-    this.audio.addEventListener('error', (e) => {
-      this.emit('error', e)
+    this.audio.addEventListener('error', () => {
+      const error = mediaElementError(this.audio.error)
+      this.setStatus('error')
+      this.emit('error', error)
     })
     this.audio.addEventListener('play', () => {
+      this.setStatus('playing')
       this.emit('play', undefined)
     })
     this.audio.addEventListener('pause', () => {
+      if (this._status !== 'error' && this._status !== 'loading') this.setStatus('paused')
       this.emit('pause', undefined)
     })
     this.audio.addEventListener('volumechange', () => {
       this.emit('volumechange', this.audio.volume)
     })
     this.audio.addEventListener('loadeddata', () => {
+      if (this.audio.paused) this.setStatus('ready')
       this.emit('loaded', undefined)
     })
   }
 
-  async load(track: Track) {
-    this._track = undefined
+  private setStatus(status: PlaybackStatus) {
+    if (this._status === status) return
+    this._status = status
+    this.emit('statuschange', status)
+  }
+
+  private reportError(error: PlaybackError) {
+    this.setStatus('error')
+    this.emit('error', error)
+    logger.warn(error.code, { stage: error.stage, retryable: error.retryable })
+  }
+
+  async load(track: Track): Promise<boolean> {
+    const sequence = ++this.loadSequence
+    this.audio.pause()
+    this.setStatus('loading')
     let src: string | Blob | undefined
 
-    if (track.uri) {
-      try {
+    try {
+      if (track.uri) {
         const result = await UriResolver.load(track.uri)
+        if (sequence !== this.loadSequence) return false
         src = result.url
-        this._track = { ...track }
+        const enrichedTrack = { ...track }
 
         // Merge metadata from adapter into track
         if (result.metadata) {
           const meta = result.metadata
-          if (meta.sampleRate !== undefined) this._track.sampleRate = meta.sampleRate
-          if (meta.bitrate !== undefined) this._track.bitrate = meta.bitrate
-          if (meta.bitDepth !== undefined) this._track.bitDepth = meta.bitDepth
-          if (meta.channels !== undefined) this._track.channels = meta.channels
-          if (meta.codec !== undefined) this._track.codec = meta.codec
-          if (meta.container !== undefined) this._track.container = meta.container
-          if (meta.lossless !== undefined) this._track.lossless = meta.lossless
-          this.emit('trackenriched', this._track)
+          if (meta.sampleRate !== undefined) enrichedTrack.sampleRate = meta.sampleRate
+          if (meta.bitrate !== undefined) enrichedTrack.bitrate = meta.bitrate
+          if (meta.bitDepth !== undefined) enrichedTrack.bitDepth = meta.bitDepth
+          if (meta.channels !== undefined) enrichedTrack.channels = meta.channels
+          if (meta.codec !== undefined) enrichedTrack.codec = meta.codec
+          if (meta.container !== undefined) enrichedTrack.container = meta.container
+          if (meta.lossless !== undefined) enrichedTrack.lossless = meta.lossless
+          this.emit('trackenriched', enrichedTrack)
         }
-      } catch (e) {
-        console.warn('Failed to load via URI', e)
-        const toast = useToastStore()
-        toast.error('Failed to load audio: ' + (e instanceof Error ? e.message : String(e)))
+        this._track = enrichedTrack
+      } else {
+        throw new PlaybackError('SOURCE_MISSING', 'resolve', '曲目缺少可播放地址。')
       }
-    } else {
-      console.error('Track missing URI, cannot load', track)
-    }
 
-    // Cleanup previous object URL
-    if (this.currentObjectUrl) {
-      URL.revokeObjectURL(this.currentObjectUrl)
-      this.currentObjectUrl = undefined
-    }
+      if (!src) throw new PlaybackError('SOURCE_UNAVAILABLE', 'resolve', '没有找到可播放的音频资源。')
+
+      // Only replace the active source after the newest resolution succeeds.
+      if (this.currentObjectUrl) {
+        URL.revokeObjectURL(this.currentObjectUrl)
+        this.currentObjectUrl = undefined
+      }
 
     // Cache Blob for future playback (skip fs tracks, already stored by adapter)
-    if (src instanceof Blob && track.uri && track.sourceId !== 'fs') {
-      audioCache.set(track.uri, src, track.sourceId).catch(() => {})
-    }
+      if (src instanceof Blob && track.sourceId !== 'fs') {
+        audioCache.set(track.uri, src, track.sourceId).catch(() => {})
+      }
 
     // Set new source
-    if (src instanceof Blob) {
-      const u = URL.createObjectURL(src)
-      this.currentObjectUrl = u
-      this.audio.src = u
-    } else if (typeof src === 'string') {
-      this.audio.src = src
-    } else {
-      this.audio.removeAttribute('src')
-      console.warn('No playable source found for track', track.title)
+      if (src instanceof Blob) {
+        const u = URL.createObjectURL(src)
+        this.currentObjectUrl = u
+        this.audio.src = u
+      } else {
+        this.audio.src = src
+      }
+
+      this.audio.load()
+      this.setStatus('ready')
+      return true
+    } catch (cause) {
+      if (sequence !== this.loadSequence) return false
+      const error = normalizePlaybackError(cause, 'resolve')
+      this.reportError(error)
+      throw error
     }
-
-    // Avoid calling audio.load() with no source — it would trigger a native error event
-    if (!this._track && !src) return
-
-    this.audio.load()
   }
 
   async play() {
     try {
       await this.audio.play()
     } catch (e) {
-      console.warn('Playback failed', e)
-      // We don't emit error here necessarily as it might be an autoplay policy block
-      // But 'error' event on audio element handles critical errors
+      const error = normalizePlaybackError(e, 'play')
+      this.reportError(error)
+      throw error
     }
   }
 
@@ -155,9 +182,9 @@ class PlayerEngineImpl extends EventEmitter {
     this.audio.pause()
   }
 
-  toggle() {
+  async toggle() {
     if (this.audio.paused) {
-      this.play()
+      await this.play()
     } else {
       this.pause()
     }
@@ -191,6 +218,10 @@ class PlayerEngineImpl extends EventEmitter {
 
   get currentTrack() {
     return this._track
+  }
+
+  get status() {
+    return this._status
   }
 }
 
