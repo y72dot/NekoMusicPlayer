@@ -9,6 +9,7 @@ import { setupPlayerBridge } from '@/services/playerBridge'
 import { usePlaylistsStore } from '@/store/playlists'
 import { usePlayerStore } from '@/store/player'
 import '@/styles/tokens.css'
+import { setupGlobalErrorCapture } from '@/services/diagnostics'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -17,6 +18,7 @@ app.use(pinia)
 app.use(router)
 app.use(i18n)
 registerAdapters()
+setupGlobalErrorCapture()
 
 const playlists = usePlaylistsStore(pinia)
 const player = usePlayerStore(pinia)

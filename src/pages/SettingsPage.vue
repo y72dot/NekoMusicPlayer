@@ -102,6 +102,15 @@
         <button v-else disabled>{{ $t('settings.data.clearing') }}</button>
       </section>
 
+      <section class="section">
+        <h3>{{ $t('settings.diagnostics.title') }}</h3>
+        <p class="desc">{{ $t('settings.diagnostics.description') }}</p>
+        <p class="privacy-note">{{ $t('settings.diagnostics.privacy') }}</p>
+        <button :disabled="exportingDiagnostics" @click="exportDiagnostics">
+          {{ exportingDiagnostics ? $t('settings.diagnostics.generating') : $t('settings.diagnostics.download') }}
+        </button>
+      </section>
+
     </div>
   </div>
 </template>
@@ -112,6 +121,7 @@ import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
 import { registry } from '@/adapters/registry'
 import type { AdapterCapabilities, AdapterHealth } from '@/adapters/types'
+import { downloadDiagnosticReport } from '@/services/diagnostics'
 
 const store = useSettingsStore()
 const showSecrets = ref(false)
@@ -178,6 +188,7 @@ const clearing = ref(false)
 const adapters = registry.list()
 const adapterHealth = ref<Record<string, AdapterHealth>>({})
 const checkingSources = ref(false)
+const exportingDiagnostics = ref(false)
 
 onMounted(async () => {
   cacheStats.value = await audioCache.getStats()
@@ -220,6 +231,15 @@ function capabilityLabel(capabilities: AdapterCapabilities) {
   return `${location} · ${auth}`
 }
 
+async function exportDiagnostics() {
+  exportingDiagnostics.value = true
+  try {
+    await downloadDiagnosticReport()
+  } finally {
+    exportingDiagnostics.value = false
+  }
+}
+
 function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -236,6 +256,7 @@ function formatSize(bytes: number): string {
 .section h3 { margin: 0; font-size: 16px; border-bottom: 1px solid #f0f0f0; padding-bottom: 4px; }
 .desc { font-size: 13px; color: #888; margin: 0; }
 .cookie-guide { font-size: 12px; color: #aaa; margin: 0; }
+.privacy-note { font-size:12px; color:var(--color-success); margin:0; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 13px; color: #555; }
 .field input, .field select { padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }

@@ -160,6 +160,12 @@ export default {
       check: 'Check sources', checking: 'Checking...', unchecked: 'Not checked',
       available: 'Available', degraded: 'Limited', unavailable: 'Unavailable',
     },
+    diagnostics: {
+      title: 'Diagnostics',
+      description: 'Download app, browser, storage, source status, playback state, and recent error details for troubleshooting.',
+      privacy: 'Generated locally. Credentials, URL queries, and blob URLs are redacted; nothing is uploaded automatically.',
+      download: 'Download diagnostic report', generating: 'Generating...',
+    },
     data: {
       title: 'Data Management',
       clearCache: 'Clear Cache',

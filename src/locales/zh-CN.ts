@@ -160,6 +160,12 @@ export default {
       check: '检查来源', checking: '检查中...', unchecked: '尚未检查',
       available: '可用', degraded: '部分可用', unavailable: '不可用',
     },
+    diagnostics: {
+      title: '问题诊断',
+      description: '下载应用、浏览器、存储、来源状态、播放状态和近期错误信息，用于排查问题。',
+      privacy: '报告仅在本地生成；凭据、URL 查询参数和 Blob 地址均会脱敏，不会自动上传。',
+      download: '下载诊断报告', generating: '正在生成...',
+    },
     data: {
       title: '数据管理',
       clearCache: '清除缓存',
