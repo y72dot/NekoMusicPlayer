@@ -7,9 +7,10 @@ import type {
   BilibiliFavList,
   BilibiliUserSpace,
 } from '@/models/bilibili'
+import { API_PATHS, UPSTREAM_COOKIE_HEADER } from '@/config/proxy'
 
-const API_BASE = '/api/bilibili'
-const AUDIO_BASE = '/api/bilibili-audio'
+const API_BASE = API_PATHS.bilibili
+const AUDIO_BASE = API_PATHS.bilibiliAudio
 const TIMEOUT_MS = 15000
 
 export class BilibiliClient {
@@ -24,7 +25,7 @@ export class BilibiliClient {
     if (csrf) cookies.push(`bili_jct=${csrf}`)
     if (buvid3) cookies.push(`buvid3=${buvid3}`)
 
-    return cookies.length > 0 ? { Cookie: cookies.join('; ') } : {}
+    return cookies.length > 0 ? { [UPSTREAM_COOKIE_HEADER]: cookies.join('; ') } : {}
   }
 
   private getCsrf(): string {

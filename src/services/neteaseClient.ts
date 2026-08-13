@@ -7,8 +7,9 @@ import type {
   NeteaseAlbumDetail,
   NeteaseSearchResult,
 } from '@/models/netease'
+import { API_PATHS, UPSTREAM_COOKIE_HEADER } from '@/config/proxy'
 
-const API_BASE = '/api/netease/weapi'
+const API_BASE = `${API_PATHS.netease}/weapi`
 const TIMEOUT_MS = 15000
 
 export class NeteaseClient {
@@ -24,7 +25,7 @@ export class NeteaseClient {
       'Content-Type': 'application/x-www-form-urlencoded',
     }
     if (settings.settings.neteaseCookie) {
-      headers['Cookie'] = `MUSIC_U=${settings.settings.neteaseCookie}; __csrf=${csrf}`
+      headers[UPSTREAM_COOKIE_HEADER] = `MUSIC_U=${settings.settings.neteaseCookie}; __csrf=${csrf}`
     }
 
     const controller = new AbortController()

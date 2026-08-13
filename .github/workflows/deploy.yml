@@ -26,6 +26,7 @@ jobs:
 
       - run: npm ci
       - run: npm run check
+      - run: node scripts/validate-production.mjs
 
       - name: Upload production build
         uses: actions/upload-artifact@v4
@@ -79,12 +80,35 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          PUBLIC_URL: ${{ secrets.PUBLIC_URL }}
         run: |
+          set -euo pipefail
+          test -n "$SSH_HOST"
+          test -n "$SSH_USER"
+          test -n "$SSH_KNOWN_HOSTS"
+          test -n "$PUBLIC_URL"
+          case "$PUBLIC_URL" in https://*) ;; *) echo "PUBLIC_URL must use HTTPS" >&2; exit 2 ;; esac
           sudo apt-get install -y sshpass
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           rsync -e "sshpass -e ssh" \
             -rltgoDzvO --delete \
             dist/ "$SSH_USER@$SSH_HOST:/var/www/nekomusic/releases/${{ github.run_id }}/"
+          sshpass -e scp "ops/deploy/manage-release.sh" "$SSH_USER@$SSH_HOST:/tmp/nekomusic-manage-${{ github.run_id }}.sh"
           sshpass -e ssh "$SSH_USER@$SSH_HOST" \
-            "ln -sfn /var/www/nekomusic/releases/${{ github.run_id }} /var/www/nekomusic/current && ls -dt /var/www/nekomusic/releases/*/ | tail -n +6 | xargs -r rm -rf && sudo systemctl reload nginx"
+            "bash /tmp/nekomusic-manage-${{ github.run_id }}.sh activate ${{ github.run_id }}"
+
+          rollback() {
+            sshpass -e ssh "$SSH_USER@$SSH_HOST" \
+              "bash /tmp/nekomusic-manage-${{ github.run_id }}.sh rollback ${{ github.run_id }}" || true
+          }
+          trap rollback ERR
+
+          curl --fail --silent --show-error --retry 4 --retry-all-errors \
+            --max-time 15 "$PUBLIC_URL/healthz"
+          curl --fail --silent --show-error --retry 4 --retry-all-errors \
+            --max-time 15 "$PUBLIC_URL/" > /dev/null
+
+          trap - ERR
+          sshpass -e ssh "$SSH_USER@$SSH_HOST" \
+            "bash /tmp/nekomusic-manage-${{ github.run_id }}.sh finalize ${{ github.run_id }} && rm -f /tmp/nekomusic-manage-${{ github.run_id }}.sh"

@@ -39,6 +39,9 @@ beforeEach(() => {
   setActivePinia(createPinia())
   clearKeyCache()
   vi.restoreAllMocks()
+  mockSettings.bilibiliSessdata = ''
+  mockSettings.bilibiliCsrf = ''
+  mockSettings.bilibiliBuvid3 = ''
 })
 
 describe('bilibiliClient', () => {
@@ -160,9 +163,9 @@ describe('bilibiliClient', () => {
     ) as any[] | undefined
     expect(callArgs).toBeDefined()
     const headers = callArgs![1]?.headers
-    expect(headers?.Cookie).toContain('SESSDATA=test_sessdata')
-    expect(headers?.Cookie).toContain('bili_jct=test_csrf')
-    expect(headers?.Cookie).toContain('buvid3=test_buvid3')
+    expect(headers?.['X-Neko-Upstream-Cookie']).toContain('SESSDATA=test_sessdata')
+    expect(headers?.['X-Neko-Upstream-Cookie']).toContain('bili_jct=test_csrf')
+    expect(headers?.['X-Neko-Upstream-Cookie']).toContain('buvid3=test_buvid3')
 
     mockSettings.bilibiliSessdata = ''
     mockSettings.bilibiliCsrf = ''

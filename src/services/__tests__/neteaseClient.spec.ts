@@ -27,6 +27,8 @@ describe('NeteaseClient', () => {
     setActivePinia(createPinia())
     client = new NeteaseClient()
     vi.restoreAllMocks()
+    mockSettings.neteaseCookie = 'test_cookie_value'
+    mockSettings.neteaseCsrf = 'test_csrf_token'
   })
 
   describe('checkAuth', () => {
@@ -61,6 +63,7 @@ describe('NeteaseClient', () => {
       const url = callArgs[0] as string
       expect(url).toContain('/api/netease/weapi/v3/song/detail')
       expect(url).toContain('csrf_token=')
+      expect(callArgs[1]?.headers?.['X-Neko-Upstream-Cookie']).toContain('MUSIC_U=')
     })
 
     it('should handle non-200 API codes gracefully (pass through)', async () => {

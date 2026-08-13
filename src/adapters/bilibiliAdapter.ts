@@ -5,6 +5,7 @@ import { BilibiliClient } from '@/services/bilibiliClient'
 import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
 import * as mm from 'music-metadata'
+import { toBilibiliCdnProxyUrl } from '@/config/proxy'
 
 const BILIBILI_URL_PATTERN = /bilibili\.com\/video\/([a-zA-Z0-9]+)/
 const BV_PATTERN = /^BV[a-zA-Z0-9]{10}$/
@@ -231,7 +232,7 @@ class BilibiliAdapter implements SourceAdapter {
     // Bilibili CDN requires Referer: https://www.bilibili.com.
     // Browsers set this automatically for same-origin but not cross-origin.
     // Strategy: try direct fetch with no-referrer first (some CDNs accept it),
-    // then fall back to Vite proxy which adds the proper Referer header.
+    // then fall back to the same-origin production/development proxy.
     try {
       const blob = await this.tryFetchAudio(cdnUrl)
 
@@ -272,8 +273,9 @@ class BilibiliAdapter implements SourceAdapter {
       // Network error, try next strategy
     }
 
-    // Strategy B: Fetch through Vite proxy (adds Referer header server-side)
+    // Strategy B: fetch through the allowlisted same-origin proxy.
     const proxiedUrl = this.rewriteCdnUrl(cdnUrl)
+    if (proxiedUrl === cdnUrl) throw new Error('CDN host is not allowlisted')
     const response = await fetch(proxiedUrl)
     if (!response.ok) {
       throw new Error(`CDN request failed: ${response.status}`)
@@ -282,17 +284,12 @@ class BilibiliAdapter implements SourceAdapter {
   }
 
   /**
-   * Rewrite a Bilibili CDN URL through the Vite proxy
+   * Rewrite a Bilibili CDN URL through the same-origin proxy
    * to add the required Referer header.
    * Format: /api/bilibili-cdn/<hostname>/<path>
    */
   private rewriteCdnUrl(cdnUrl: string): string {
-    try {
-      const url = new URL(cdnUrl)
-      return `/api/bilibili-cdn/${url.hostname}${url.pathname}${url.search}`
-    } catch {
-      return cdnUrl
-    }
+    return toBilibiliCdnProxyUrl(cdnUrl) ?? cdnUrl
   }
 
   private mapVideoToTrack(video: import('@/models/bilibili').BilibiliVideoData): Track {
