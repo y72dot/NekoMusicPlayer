@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Test Playlist 1",
+    "tracks": [
+      {
+        "id": "test-track-1",
+        "uri": "neko://test/track/test-track-1",
+        "title": "Test Song 1",
+        "sourceId": "test",
+        "sourceRef": {}
+      },
+      {
+        "id": "test-track-2",
+        "uri": "neko://test/track/test-track-2",
+        "title": "Test Song 2",
+        "sourceId": "test",
+        "sourceRef": {}
+      }
+    ]
+  },
+  {
+    "name": "Test Playlist 2",
+    "tracks": []
+  }
+]
