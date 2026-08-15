@@ -68,6 +68,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Checkout deployment scripts
+        uses: actions/checkout@v4
+
       - name: Download verified production build
         uses: actions/download-artifact@v4
         with:
