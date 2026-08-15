@@ -130,4 +130,23 @@ describe('PlayerStore', () => {
 
     expect(player.index).toBe(0)
   })
+
+  it('does not cascade through the queue on a retryable source outage', async () => {
+    const player = usePlayerStore()
+    await player.setQueue([makeTrack('1', 'A'), makeTrack('2', 'B')], 0)
+    await player.recoverFromError(new PlaybackError('TIMEOUT', 'resolve', 'timed out', true))
+
+    expect(player.index).toBe(0)
+    expect(playerEngine.play).not.toHaveBeenCalled()
+  })
+
+  it('ignores repeated transport clicks while a source is loading', async () => {
+    const player = usePlayerStore()
+    await player.setQueue([makeTrack('1', 'A')], 0)
+    player.status = 'loading'
+
+    await player.toggle()
+
+    expect(playerEngine.toggle).not.toHaveBeenCalled()
+  })
 })

@@ -96,6 +96,10 @@ export const usePlayerStore = defineStore('player', {
     },
 
     async toggle() {
+      // Ignore repeated transport clicks while the current source is resolving.
+      // Starting another resolution cannot make the upstream respond sooner and
+      // used to create a burst of identical requests after a transient timeout.
+      if (this.status === 'loading') return
       if (!this.current && this.queue.length === 0) {
         const playlists = usePlaylistsStore()
         if (playlists.library.length > 0) {
@@ -188,6 +192,12 @@ export const usePlayerStore = defineStore('player', {
       this.setError(error)
       const current = this.current
       if (!current || this.queue.length < 2 || error.code === 'AUTOPLAY_BLOCKED') return
+
+      // A timeout, network outage or rate limit normally affects the whole
+      // source. Skipping recursively only repeats the same failing request for
+      // every queue item and turns one transient failure into an error storm.
+      if (error.retryable) return
+
       if (this.failedTrackIds.includes(current.id)) return
       this.failedTrackIds.push(current.id)
       if (this.failedTrackIds.length >= this.queue.length) return
@@ -195,6 +205,7 @@ export const usePlayerStore = defineStore('player', {
     },
 
     async playNext(track: Track) {
+      if (this.status === 'loading' && this.current?.id === track.id) return
       if (this.queue.length === 0) {
         // If queue is empty, just play it
         await this.setQueue([track], 0)

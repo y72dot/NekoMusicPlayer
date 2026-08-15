@@ -10,7 +10,7 @@
     <div class="transport">
       <div class="transport-buttons">
         <button class="icon-button" :aria-label="$t('controls.previous')" :title="$t('controls.previous')" :data-empty="!player.queue.length" @click="prev"><span aria-hidden="true">⏮</span></button>
-        <button class="play-button" :aria-label="player.playing ? $t('controls.pause') : $t('controls.play')" :title="player.playing ? $t('controls.pause') : $t('controls.play')" @click="toggle"><span aria-hidden="true">{{ player.playing ? '⏸' : '▶️' }}</span></button>
+        <button class="play-button" :aria-label="player.playing ? $t('controls.pause') : $t('controls.play')" :title="player.playing ? $t('controls.pause') : $t('controls.play')" :disabled="player.status === 'loading'" @click="toggle"><span aria-hidden="true">{{ player.playing ? '⏸' : '▶️' }}</span></button>
         <button class="icon-button" :aria-label="$t('controls.next')" :title="$t('controls.next')" :data-empty="!player.queue.length" @click="next"><span aria-hidden="true">⏭</span></button>
       </div>
       <div class="progress-row">
@@ -70,6 +70,7 @@ button { display:grid; place-items:center; border:0; background:transparent; col
 .icon-button[data-empty="true"] { color:var(--color-text-muted); opacity:.55; }
 .play-button { width:44px; height:44px; border-radius:50%; color:#fff; background:var(--color-primary); box-shadow:0 8px 20px rgba(109,93,252,.3); }
 .play-button:hover { background:var(--color-primary-strong); transform:translateY(-1px); }
+.play-button:disabled { cursor:wait; opacity:.7; transform:none; }
 .progress-row { width:min(100%,560px); display:grid; grid-template-columns:minmax(80px,1fr) auto; align-items:center; gap:12px; }
 .progress-row input { width:100%; }
 .time-text { min-width:76px; color:var(--color-text-muted); font-variant-numeric:tabular-nums; font-size:12px; text-align:right; }

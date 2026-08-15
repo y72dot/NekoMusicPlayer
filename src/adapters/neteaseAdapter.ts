@@ -11,6 +11,19 @@ import { AdapterError } from '@/adapters/adapterError'
 const NETBASE_URL_PATTERN = /music\.163\.com/
 const SONG_ID_PATTERN = /^\d{4,}$/
 
+function secureMediaUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl)
+    const hostname = url.hostname.toLowerCase()
+    if (url.protocol === 'http:' && (hostname === 'music.126.net' || hostname.endsWith('.music.126.net'))) {
+      url.protocol = 'https:'
+    }
+    return url.toString()
+  } catch {
+    return rawUrl
+  }
+}
+
 class NeteaseAdapter implements SourceAdapter {
   id = 'netease'
   name = 'NetEase Cloud Music'
@@ -139,10 +152,11 @@ class NeteaseAdapter implements SourceAdapter {
       throw new AdapterError('NOT_FOUND', `Failed to get playback URL (ID: ${resourceId})`, this.id)
     }
 
-    const songUrl = result.data[0]?.url
-    if (!songUrl) {
+    const rawSongUrl = result.data[0]?.url
+    if (!rawSongUrl) {
       throw new AdapterError('COPYRIGHT_RESTRICTED', 'Song unavailable due to copyright restrictions', this.id)
     }
+    const songUrl = secureMediaUrl(rawSongUrl)
 
     // Fetch as blob and parse metadata
     try {

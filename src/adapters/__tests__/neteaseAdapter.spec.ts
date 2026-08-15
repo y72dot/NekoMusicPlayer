@@ -239,6 +239,18 @@ describe('NeteaseAdapter', () => {
       expect(result.url).toBe('https://m8.music.126.net/stream.mp3')
     })
 
+    it('upgrades NetEase HTTP media URLs on an HTTPS application', async () => {
+      mockWeapi.mockResolvedValueOnce({
+        code: 200,
+        data: [{ id: 123, url: 'http://m10.music.126.net/stream.mp3?token=test', br: 320000, size: 10000000, type: 'mp3' }],
+      })
+
+      const result = await neteaseAdapter.loadByUri('12345678', { quality: 'standard' })
+
+      expect(fetch).toHaveBeenCalledWith('https://m10.music.126.net/stream.mp3?token=test')
+      expect(result.url).toBe('https://m10.music.126.net/stream.mp3?token=test')
+    })
+
     it('should throw when URL is null (copyright)', async () => {
       mockWeapi.mockResolvedValueOnce({
         code: 200,
