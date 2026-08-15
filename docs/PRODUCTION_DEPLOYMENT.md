@@ -3,7 +3,7 @@
 ## 1. 架构约定
 
 - 静态站点：`/var/www/nekomusic/current`。
-- 版本目录：`/var/www/nekomusic/releases/<GitHub run id>`。
+- 版本目录：`/var/www/nekomusic/releases/<UTC 发布时间>`，目录内 `COMMIT` 记录精确 Git 提交。
 - 通用 Nginx 样例：`ops/nginx/nekomusic.conf.example`；当前生产配置：`ops/nginx/music.72dot.cn.conf`。
 - 浏览器仅访问同源 `/api/*`，Nginx 再代理到固定上游。
 - 网易云和 Bilibili 凭据通过 `X-Neko-Upstream-Cookie` 到达同源 Nginx，再转换为上游 `Cookie`；该请求头不得进入访问日志。
@@ -24,45 +24,65 @@ curl --fail http://127.0.0.1/healthz
 
 5. 为公网域名 `https://music.72dot.cn` 配置 HTTPS。
 
-## 3. GitHub 配置
+## 3. 服务器端发布仓库
 
-在 `production` Environment 中配置：
+GitHub Actions 不再拥有服务器凭据，也不执行生产部署。`.github/workflows/ci.yml` 只在 Pull Request、`main` 推送或人工触发时运行质量检查。
 
-- `SSH_HOST`
-- `SSH_USER`
-- `SSH_PASSWORD`（后续建议迁移为受限 SSH Key）
-当前部署不要求额外配置 `SSH_KNOWN_HOSTS` 或 `PUBLIC_URL`：域名固定为 `https://music.72dot.cn`，服务器 Ed25519 主机公钥已从服务器控制台取得并固定在工作流中。服务器重装或主机密钥轮换时，需要通过可信控制台更新仓库中的公钥。
+在服务器上准备一个仅用于构建的仓库副本，例如 `/opt/nekomusic-src`，并确保部署用户：
 
-同时：
+- 能从 `origin` 读取代码，但不需要仓库写权限。
+- 已安装 Git、Node.js 20、npm、curl 和 tar。
+- 能写入 `/var/www/nekomusic/releases`、`current` 与 `deploy-state`。
+- 应保持部署仓库干净，以便通过 fast-forward 更新部署脚本；应用构建本身通过 `git archive` 从远端提交创建隔离目录。
 
-- 为 `production` 增加审批人，仅允许 `main` 部署。
-- 将质量检查和 E2E 设置为 `main` 必需检查。
-- 确认 Nginx access log 格式没有记录请求头。
+首次准备示例：
 
-## 4. 自动部署行为
+```bash
+sudo git clone <repository-url> /opt/nekomusic-src
+sudo chown -R ubuntu:ubuntu /opt/nekomusic-src /var/www/nekomusic
+cd /opt/nekomusic-src
+```
 
-1. CI 安装依赖、类型检查、运行单测/E2E并构建。
-2. 已验证的 `dist` 上传到新的版本目录。
-3. `manage-release.sh activate` 原子切换 `current`，并保存上一版本位置。
-4. GitHub Runner 要求 `https://music.72dot.cn/healthz` 返回 HTTP 200 且正文精确为 `ok`，随后检查站点首页。
-5. 检查失败时执行 `rollback`；成功时执行 `finalize` 并只保留最近五个版本。
+私有仓库应配置只读 Deploy Key；不要在脚本、Shell 历史或仓库文件中保存访问令牌。
+
+## 4. 手动部署行为
+
+在服务器仓库内显式执行：
+
+```bash
+cd /opt/nekomusic-src
+git switch main
+git pull --ff-only origin main
+bash ops/deploy/deploy-from-server.sh main
+```
+
+脚本按以下顺序执行：
+
+1. 从 `origin` 获取指定分支并解析远端精确提交，不直接修改服务器仓库工作树。
+2. 在 `mktemp` 隔离目录中导出该提交，执行 `npm ci`、类型检查、全部单元测试、生产构建和生产资产结构校验。
+3. 将已验证的 `dist` 复制到新的时间戳版本目录，并记录 `COMMIT`。
+4. `manage-release.sh activate` 原子切换 `current`，并保存上一版本位置。
+5. 要求 `https://music.72dot.cn/healthz` 返回 HTTP 200 且正文精确为 `ok`，随后检查站点首页。
+6. 检查失败时自动 `rollback`；成功时 `finalize`，只保留最近五个版本。
+
+默认发布 `main`，也可以传入其他明确分支。`PUBLIC_URL` 和 `DEPLOY_ROOT` 可通过环境变量覆盖；生产环境通常保持默认值。
 
 ## 5. 人工烟雾检查
 
-自动检查成功后验证：
+部署脚本成功后验证：
 
 - 首页、路由刷新、静态资源和 PWA 更新。
 - 本地文件导入、播放、切歌和刷新恢复。
 - 网易云与 Bilibili 各执行一次脱敏测试导入；浏览器网络面板中不应出现跨域失败。
 - 设置保存、缓存统计与清理。
-- 日志和 Actions 附件中不存在 Cookie、Token 或完整签名参数。
+- 浏览器日志和服务器日志中不存在 Cookie、Token 或完整签名参数。
 
-## 6. 人工回滚
+## 6. 手动回滚
 
-如自动回滚未执行，选择上一个已验证目录并原子切换：
+如果需要回退已经成功发布的版本，先读取各版本的 `COMMIT`，选择上一个已验证目录并原子切换：
 
 ```bash
-ln -sfn /var/www/nekomusic/releases/<previous-run-id> /var/www/nekomusic/current
+ln -sfn /var/www/nekomusic/releases/<previous-release-id> /var/www/nekomusic/current
 sudo nginx -t
 sudo systemctl reload nginx
 curl --fail https://your-domain.example/healthz

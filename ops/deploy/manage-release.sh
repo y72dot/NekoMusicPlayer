@@ -3,7 +3,7 @@ set -euo pipefail
 
 action="${1:-}"
 release_id="${2:-}"
-deploy_root="/var/www/nekomusic"
+deploy_root="${DEPLOY_ROOT:-/var/www/nekomusic}"
 releases_dir="$deploy_root/releases"
 current_link="$deploy_root/current"
 state_dir="$deploy_root/deploy-state"

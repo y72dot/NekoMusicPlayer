@@ -454,3 +454,9 @@ npm run build
 4. 增加协议升级、超时不级联和加载中防重复操作的单元回归测试。
 
 验证要求：类型检查、全部单元测试、生产构建和 E2E 均通过后再部署；部署后重点观察网易播放地址 POST 数量、混合内容告警和连续切歌行为。
+
+## 16. 2026-08-15 部署方式调整
+
+生产部署从 GitHub Actions 自动 SSH 发布改为服务器端人工触发：删除生产部署 workflow，GitHub Actions 仅保留 `main`/Pull Request 质量检查；服务器通过 `ops/deploy/deploy-from-server.sh` 获取远端提交、隔离构建、执行质量门禁、创建版本目录、原子切换、健康检查和失败回滚。原有 `manage-release.sh` 继续负责版本状态与最近五版清理。
+
+此决策取代本文之前关于 GitHub `production` Environment、SSH Secrets、Actions Artifact 和自动部署的待办要求；这些段落仅保留为历史执行记录，不再是当前生产操作规范。当前规范以 `docs/PRODUCTION_DEPLOYMENT.md` 为准。

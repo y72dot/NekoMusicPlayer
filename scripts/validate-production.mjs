@@ -5,7 +5,7 @@ const requiredFiles = [
   'ops/nginx/nekomusic.conf.example',
   'ops/nginx/music.72dot.cn.conf',
   'ops/deploy/manage-release.sh',
-  '.github/workflows/deploy.yml',
+  'ops/deploy/deploy-from-server.sh',
 ]
 
 const failures = []
@@ -23,15 +23,14 @@ if (fs.existsSync('ops/nginx/nekomusic.conf.example')) {
 }
 
 if (fs.existsSync('.github/workflows/deploy.yml')) {
-  const workflow = fs.readFileSync('.github/workflows/deploy.yml', 'utf8')
-  for (const marker of ['https://music.72dot.cn', 'AAAAC3NzaC1lZDI1NTE5AAAAIB1aihNvsJykvm35eT1+VsGcb4tRa2hld6NqH+MUV8i/', '.sh rollback', 'curl --fail']) {
-    if (!workflow.includes(marker)) failures.push(`deploy workflow missing ${marker}`)
+  failures.push('GitHub deployment workflow must remain removed; production deployment is server-side manual')
+}
+
+if (fs.existsSync('ops/deploy/deploy-from-server.sh')) {
+  const deployScript = fs.readFileSync('ops/deploy/deploy-from-server.sh', 'utf8')
+  for (const marker of ['git -C "$repo_root" fetch', 'npm run check', 'manage-release.sh', 'activate "$release_id"', 'rollback "$release_id"', 'test "$health_body" = "ok"']) {
+    if (!deployScript.includes(marker)) failures.push(`manual deploy script missing ${marker}`)
   }
-  if (!workflow.includes('test "$health_body" = "ok"')) failures.push('deploy health check must require the exact ok body')
-  if (!/deploy:[\s\S]*actions\/checkout@v4[\s\S]*actions\/download-artifact@v4/.test(workflow)) {
-    failures.push('deploy job must checkout release scripts before downloading the build')
-  }
-  if (workflow.includes('StrictHostKeyChecking=no')) failures.push('SSH host verification is disabled')
 }
 
 if (failures.length) {
