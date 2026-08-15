@@ -33,12 +33,12 @@
 
 ## 推送后必须完成
 
-- [ ] 推送当前提交到远端分支。
+- [x] 推送当前提交到远端分支。
 - [x] 当前部署不要求 `SSH_KNOWN_HOSTS` Secret。
-- [ ] 检查 `production` GitHub Environment，并建议启用人工审批。
+- [x] `production` GitHub Environment 已成功执行部署；审批策略仍可按团队需要调整。
 - [ ] 为 `main` 启用分支保护和必需质量检查。
-- [ ] 观察首次 GitHub Actions，确认 Node 20、Chromium 和 Ubuntu 环境通过。
-- [ ] 执行或批准生产部署。
+- [x] GitHub Actions 类型、单测、构建、Chromium E2E 和 Ubuntu 环境通过；Node 20 Actions 弃用警告已记录为后续维护项。
+- [x] 生产部署与精确健康检查成功。
 - [ ] 部署后验证导航、导入、播放、刷新恢复、歌单和设置保存。
 - [ ] 创建带注释标签 `v0.3.0`。
 - [ ] 创建 GitHub Release，并引用 `CHANGELOG.md` 的 0.3.0 内容。
