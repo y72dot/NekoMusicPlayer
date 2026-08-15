@@ -4,14 +4,14 @@
 
 - 静态站点：`/var/www/nekomusic/current`。
 - 版本目录：`/var/www/nekomusic/releases/<GitHub run id>`。
-- Nginx 样例：`ops/nginx/nekomusic.conf.example`。
+- 通用 Nginx 样例：`ops/nginx/nekomusic.conf.example`；当前生产配置：`ops/nginx/music.72dot.cn.conf`。
 - 浏览器仅访问同源 `/api/*`，Nginx 再代理到固定上游。
 - 网易云和 Bilibili 凭据通过 `X-Neko-Upstream-Cookie` 到达同源 Nginx，再转换为上游 `Cookie`；该请求头不得进入访问日志。
 - Bilibili CDN 只允许 `*.bilivideo.com` 和 `*.hdslb.com` 的 HTTPS 子域名。
 
 ## 2. 首次服务器配置
 
-1. 复制 Nginx 样例并将 `example.com` 替换为实际域名。
+1. `music.72dot.cn` 直接安装 `ops/nginx/music.72dot.cn.conf`；其他域名复制通用样例并替换域名、TLS 与证书路径。
 2. 如服务器不能使用样例中的公共 DNS resolver，将其替换为可信的系统/内网 DNS。
 3. 确认部署用户可以写入 `/var/www/nekomusic`，但不授予无关系统目录权限。
 4. 执行：
@@ -44,7 +44,7 @@ curl --fail http://127.0.0.1/healthz
 1. CI 安装依赖、类型检查、运行单测/E2E并构建。
 2. 已验证的 `dist` 上传到新的版本目录。
 3. `manage-release.sh activate` 原子切换 `current`，并保存上一版本位置。
-4. GitHub Runner 请求 `https://music.72dot.cn/healthz` 和站点首页。
+4. GitHub Runner 要求 `https://music.72dot.cn/healthz` 返回 HTTP 200 且正文精确为 `ok`，随后检查站点首页。
 5. 检查失败时执行 `rollback`；成功时执行 `finalize` 并只保留最近五个版本。
 
 ## 5. 人工烟雾检查

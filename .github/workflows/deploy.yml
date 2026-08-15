@@ -104,8 +104,9 @@ jobs:
           }
           trap rollback ERR
 
-          curl --fail --silent --show-error --retry 4 --retry-all-errors \
-            --max-time 15 "$PUBLIC_URL/healthz"
+          health_body="$(curl --fail --silent --show-error --retry 4 --retry-all-errors \
+            --max-time 15 "$PUBLIC_URL/healthz")"
+          test "$health_body" = "ok"
           curl --fail --silent --show-error --retry 4 --retry-all-errors \
             --max-time 15 "$PUBLIC_URL/" > /dev/null
 

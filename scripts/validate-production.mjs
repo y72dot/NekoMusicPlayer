@@ -3,6 +3,7 @@ import fs from 'node:fs'
 const requiredFiles = [
   'dist/index.html',
   'ops/nginx/nekomusic.conf.example',
+  'ops/nginx/music.72dot.cn.conf',
   'ops/deploy/manage-release.sh',
   '.github/workflows/deploy.yml',
 ]
@@ -26,6 +27,7 @@ if (fs.existsSync('.github/workflows/deploy.yml')) {
   for (const marker of ['https://music.72dot.cn', 'AAAAC3NzaC1lZDI1NTE5AAAAIB1aihNvsJykvm35eT1+VsGcb4tRa2hld6NqH+MUV8i/', '.sh rollback', 'curl --fail']) {
     if (!workflow.includes(marker)) failures.push(`deploy workflow missing ${marker}`)
   }
+  if (!workflow.includes('test "$health_body" = "ok"')) failures.push('deploy health check must require the exact ok body')
   if (!/deploy:[\s\S]*actions\/checkout@v4[\s\S]*actions\/download-artifact@v4/.test(workflow)) {
     failures.push('deploy job must checkout release scripts before downloading the build')
   }
