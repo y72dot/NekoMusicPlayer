@@ -15,10 +15,11 @@ for (const file of requiredFiles) {
 
 if (fs.existsSync('ops/nginx/nekomusic.conf.example')) {
   const nginx = fs.readFileSync('ops/nginx/nekomusic.conf.example', 'utf8')
-  for (const path of ['/api/netease/', '/api/bilibili/', '/api/bilibili-audio/', '/api/bilibili-cdn/']) {
+  for (const path of ['/api/netease/', '/api/netease-media/', '/api/bilibili/', '/api/bilibili-audio/', '/api/bilibili-cdn/']) {
     if (!nginx.includes(path)) failures.push(`nginx config missing ${path}`)
   }
   if (!nginx.includes('bilivideo\\.com|hdslb\\.com')) failures.push('nginx CDN allowlist missing')
+  if (!nginx.includes('\\.music\\.126\\.net')) failures.push('NetEase media allowlist missing')
   if (/proxy_pass\s+\$scheme:\/\//.test(nginx)) failures.push('nginx contains an unrestricted scheme proxy')
 }
 

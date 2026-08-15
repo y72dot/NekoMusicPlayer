@@ -56,7 +56,48 @@ server {
         proxy_buffering off;
     }
 
-    location /api/bilibili-audio/ {
+    # NetEase playback URLs are signed for their original protocol and CDN host.
+    # Keep both values unchanged behind a same-origin, allowlisted proxy so the
+    # browser never makes mixed-content or cross-origin media requests.
+    location ~ ^/api/netease-media/http/(?<netease_http_host>[a-z0-9-]+(?:\.[a-z0-9-]+)*\.music\.126\.net)(?<netease_http_path>/.*)$ {
+        resolver 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        proxy_pass http://$netease_http_host$netease_http_path$is_args$args;
+        proxy_set_header Host $netease_http_host;
+        proxy_set_header Referer https://music.163.com;
+        proxy_set_header Cookie "";
+        proxy_set_header X-Neko-Upstream-Cookie "";
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_buffering off;
+        add_header Cache-Control "private, max-age=300" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location ~ ^/api/netease-media/https/(?<netease_https_host>[a-z0-9-]+(?:\.[a-z0-9-]+)*\.music\.126\.net)(?<netease_https_path>/.*)$ {
+        resolver 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        proxy_pass https://$netease_https_host$netease_https_path$is_args$args;
+        proxy_ssl_server_name on;
+        proxy_ssl_name $netease_https_host;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+        proxy_set_header Host $netease_https_host;
+        proxy_set_header Referer https://music.163.com;
+        proxy_set_header Cookie "";
+        proxy_set_header X-Neko-Upstream-Cookie "";
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_buffering off;
+        add_header Cache-Control "private, max-age=300" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
++    location /api/bilibili-audio/ {
         proxy_pass https://www.bilibili.com/;
         proxy_ssl_server_name on;
         proxy_ssl_verify on;

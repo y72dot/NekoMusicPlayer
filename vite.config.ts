@@ -2,7 +2,12 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
-import { API_PATHS, UPSTREAM_COOKIE_HEADER, isAllowedBilibiliCdnHost } from './src/config/proxy'
+import {
+  API_PATHS,
+  UPSTREAM_COOKIE_HEADER,
+  isAllowedBilibiliCdnHost,
+  isAllowedNeteaseMediaHost,
+} from './src/config/proxy'
 
 function forwardUpstreamCookie(proxyReq: import('node:http').ClientRequest, req: import('node:http').IncomingMessage) {
   const cookie = req.headers[UPSTREAM_COOKIE_HEADER.toLowerCase()]
@@ -58,6 +63,53 @@ function bilibiliCdnProxy(): Plugin {
   }
 }
 
+function neteaseMediaProxy(): Plugin {
+  return {
+    name: 'netease-media-proxy',
+    configureServer(server) {
+      server.middlewares.use(API_PATHS.neteaseMedia, async (req, res) => {
+        try {
+          const rawPath = (req.url || '/').replace(/^\/api\/netease-media\//, '')
+          const protocolEnd = rawPath.indexOf('/')
+          const hostEnd = rawPath.indexOf('/', protocolEnd + 1)
+          if (protocolEnd === -1 || hostEnd === -1) {
+            res.statusCode = 400
+            res.end('Invalid NetEase media proxy path')
+            return
+          }
+
+          const protocol = rawPath.substring(0, protocolEnd)
+          const hostname = rawPath.substring(protocolEnd + 1, hostEnd)
+          const path = rawPath.substring(hostEnd)
+          if (!['http', 'https'].includes(protocol) || !isAllowedNeteaseMediaHost(hostname)) {
+            res.statusCode = 403
+            res.end('NetEase media target is not allowed')
+            return
+          }
+
+          const headers: Record<string, string> = { Referer: 'https://music.163.com' }
+          if (typeof req.headers.range === 'string') headers.Range = req.headers.range
+          if (typeof req.headers['if-range'] === 'string') headers['If-Range'] = req.headers['if-range']
+          const response = await fetch(`${protocol}://${hostname}${path}`, { headers })
+
+          res.statusCode = response.status
+          for (const header of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+            const value = response.headers.get(header)
+            if (value) res.setHeader(header, value)
+          }
+          res.setHeader('Cache-Control', 'private, max-age=300')
+          res.setHeader('X-Content-Type-Options', 'nosniff')
+          res.end(Buffer.from(await response.arrayBuffer()))
+        } catch (e) {
+          console.error('[netease-media] Proxy error:', e)
+          res.statusCode = 502
+          res.end('NetEase media proxy error')
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '0.3.0'),
@@ -92,6 +144,7 @@ export default defineConfig({
         ],
       },
     }),
+    neteaseMediaProxy(),
     bilibiliCdnProxy(),
   ],
   resolve: {

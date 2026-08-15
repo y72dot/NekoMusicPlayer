@@ -7,22 +7,10 @@ import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
 import * as mm from 'music-metadata'
 import { AdapterError } from '@/adapters/adapterError'
+import { toNeteaseMediaProxyUrl } from '@/config/proxy'
 
 const NETBASE_URL_PATTERN = /music\.163\.com/
 const SONG_ID_PATTERN = /^\d{4,}$/
-
-function secureMediaUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl)
-    const hostname = url.hostname.toLowerCase()
-    if (url.protocol === 'http:' && (hostname === 'music.126.net' || hostname.endsWith('.music.126.net'))) {
-      url.protocol = 'https:'
-    }
-    return url.toString()
-  } catch {
-    return rawUrl
-  }
-}
 
 class NeteaseAdapter implements SourceAdapter {
   id = 'netease'
@@ -156,7 +144,10 @@ class NeteaseAdapter implements SourceAdapter {
     if (!rawSongUrl) {
       throw new AdapterError('COPYRIGHT_RESTRICTED', 'Song unavailable due to copyright restrictions', this.id)
     }
-    const songUrl = secureMediaUrl(rawSongUrl)
+    const songUrl = toNeteaseMediaProxyUrl(rawSongUrl)
+    if (!songUrl) {
+      throw new AdapterError('ACCESS_DENIED', 'Playback URL host is not allowed', this.id)
+    }
 
     // Fetch as blob and parse metadata
     try {

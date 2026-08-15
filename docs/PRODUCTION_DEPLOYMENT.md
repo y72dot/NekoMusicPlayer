@@ -6,6 +6,7 @@
 - 版本目录：`/var/www/nekomusic/releases/<UTC 发布时间>`，目录内 `COMMIT` 记录精确 Git 提交。
 - 通用 Nginx 样例：`ops/nginx/nekomusic.conf.example`；当前生产配置：`ops/nginx/music.72dot.cn.conf`。
 - 浏览器仅访问同源 `/api/*`，Nginx 再代理到固定上游。
+- 网易签名音频通过 `/api/netease-media/<http|https>/<host>/...` 保留原协议转发，仅允许 `*.music.126.net` 子域，避免混合内容、CORS 和签名失效。
 - 网易云和 Bilibili 凭据通过 `X-Neko-Upstream-Cookie` 到达同源 Nginx，再转换为上游 `Cookie`；该请求头不得进入访问日志。
 - Bilibili CDN 只允许 `*.bilivideo.com` 和 `*.hdslb.com` 的 HTTPS 子域名。
 

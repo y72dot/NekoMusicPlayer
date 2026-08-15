@@ -460,3 +460,7 @@ npm run build
 生产部署从 GitHub Actions 自动 SSH 发布改为服务器端人工触发：删除生产部署 workflow，GitHub Actions 仅保留 `main`/Pull Request 质量检查；服务器通过 `ops/deploy/deploy-from-server.sh` 获取远端提交、隔离构建、执行质量门禁、创建版本目录、原子切换、健康检查和失败回滚。原有 `manage-release.sh` 继续负责版本状态与最近五版清理。
 
 此决策取代本文之前关于 GitHub `production` Environment、SSH Secrets、Actions Artifact 和自动部署的待办要求；这些段落仅保留为历史执行记录，不再是当前生产操作规范。当前规范以 `docs/PRODUCTION_DEPLOYMENT.md` 为准。
+
+## 17. 2026-08-15 网易 CDN 二次回归处置
+
+第二份线上日志确认：直接把网易返回的 HTTP 签名音频 URL 升级为 HTTPS 会导致 CDN 返回 403，浏览器直连 CDN 的元数据 `fetch` 同时受 CORS 限制。协议升级方案因此撤回，改为严格白名单的同源 `/api/netease-media/<http|https>/<host>/...` 代理；代理保留原始协议、主机、路径和签名查询参数，只允许 `*.music.126.net`，并向上游设置网易 Referer。开发服务器与生产 Nginx 使用相同的目标校验规则。

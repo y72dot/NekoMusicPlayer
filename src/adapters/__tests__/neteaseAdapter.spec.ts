@@ -236,10 +236,10 @@ describe('NeteaseAdapter', () => {
       })
 
       const result = await neteaseAdapter.loadByUri('12345678', { quality: 'standard' })
-      expect(result.url).toBe('https://m8.music.126.net/stream.mp3')
+      expect(result.url).toBe('/api/netease-media/https/m8.music.126.net/stream.mp3')
     })
 
-    it('upgrades NetEase HTTP media URLs on an HTTPS application', async () => {
+    it('proxies NetEase HTTP media URLs without changing their signed protocol', async () => {
       mockWeapi.mockResolvedValueOnce({
         code: 200,
         data: [{ id: 123, url: 'http://m10.music.126.net/stream.mp3?token=test', br: 320000, size: 10000000, type: 'mp3' }],
@@ -247,8 +247,19 @@ describe('NeteaseAdapter', () => {
 
       const result = await neteaseAdapter.loadByUri('12345678', { quality: 'standard' })
 
-      expect(fetch).toHaveBeenCalledWith('https://m10.music.126.net/stream.mp3?token=test')
-      expect(result.url).toBe('https://m10.music.126.net/stream.mp3?token=test')
+      expect(fetch).toHaveBeenCalledWith('/api/netease-media/http/m10.music.126.net/stream.mp3?token=test')
+      expect(result.url).toBe('/api/netease-media/http/m10.music.126.net/stream.mp3?token=test')
+    })
+
+    it('rejects a playback URL outside the NetEase media allowlist', async () => {
+      mockWeapi.mockResolvedValueOnce({
+        code: 200,
+        data: [{ id: 123, url: 'https://example.org/stream.mp3', br: 320000, size: 10000000, type: 'mp3' }],
+      })
+
+      await expect(
+        neteaseAdapter.loadByUri('12345678', { quality: 'standard' }),
+      ).rejects.toThrow('not allowed')
     })
 
     it('should throw when URL is null (copyright)', async () => {

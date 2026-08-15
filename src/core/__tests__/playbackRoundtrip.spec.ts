@@ -313,7 +313,7 @@ describe('Playback Roundtrip', () => {
     it('7.1 load → cache → refresh → load again (cache hit, no network)', async () => {
       neteaseClientMocks.getSongUrl.mockResolvedValue({
         code: 200,
-        data: [{ url: 'https://cdn.example.com/netease-song.mp3' }],
+        data: [{ url: 'https://m8.music.126.net/netease-song.mp3' }],
       })
 
       const track: Track = {
@@ -328,7 +328,7 @@ describe('Playback Roundtrip', () => {
       await playerEngine.load(track)
 
       expect(neteaseClientMocks.getSongUrl).toHaveBeenCalled()
-      expect(fetchMock).toHaveBeenCalled()
+      expect(fetchMock).toHaveBeenCalledWith('/api/netease-media/https/m8.music.126.net/netease-song.mp3')
       expect(mockAudioInstance.src).toMatch(/^blob:mock-/)
       const phase1Src = mockAudioInstance.src
 
