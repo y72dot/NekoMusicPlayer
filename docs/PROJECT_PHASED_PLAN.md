@@ -175,7 +175,7 @@
 - 依赖安装由 `npm install --legacy-peer-deps` 改为锁文件驱动的 `npm ci`。
 - E2E 失败时上传 Playwright 报告、截图、视频和 Trace，保留 7 天。
 - 工作流权限收敛为只读仓库内容，并为质量检查和生产部署设置并发策略。
-- 部署密码通过 `SSHPASS` 环境变量传递，不再嵌入命令行；SSH 主机指纹改由 `SSH_KNOWN_HOSTS` Secret 提供，不再关闭主机校验。
+- 部署密码通过 `SSHPASS` 环境变量传递，不再嵌入命令行；服务器主机公钥从可信控制台取得并固定在工作流中，不要求额外 Secret。
 - 生产部署绑定 GitHub `production` Environment，可在仓库设置中增加审批人和部署限制。
 
 本地验证结果：
@@ -189,7 +189,7 @@
 
 以下事项必须在提交推送后由仓库维护者完成，不能仅靠本地文件验证：
 
-1. 在 GitHub Secrets 增加 `SSH_KNOWN_HOSTS`，内容应从可信渠道获取生产服务器主机公钥指纹。
+1. 复核现有 `SSH_HOST`、`SSH_USER` 和 `SSH_PASSWORD`；服务器主机公钥轮换时从可信控制台更新固定公钥。
 2. 创建或检查 `production` Environment，建议要求人工审批并只允许 `main` 部署。
 3. 在 `main` 分支保护中将 `Typecheck, unit tests and build` 与 `End-to-end tests` 设为必需检查。
 4. 观察首次 Pull Request 和 `main` Actions，确认 Ubuntu 环境、浏览器安装和部署权限均正常。
@@ -760,7 +760,7 @@ flowchart LR
 ## 12. 建议的下一步行动
 
 1. 推送阶段提交并观察 Pull Request 与 `main` 的首次 GitHub Actions。
-2. 按发布检查记录配置 `SSH_KNOWN_HOSTS`、`production` Environment 和分支保护。
+2. 按发布检查记录配置 `production` Environment 和分支保护；主机公钥固定在工作流中，不要求额外 Secret。
 3. CI 通过后执行生产部署、烟雾测试和回滚确认。
 4. 在已验证提交上创建 `v0.3.0` 标签与 GitHub Release。
 5. 建立 Roadmap 建议的远端标签和 Milestone，并为进入 `Now` 的事项关联 Issue、负责人和验收标准。

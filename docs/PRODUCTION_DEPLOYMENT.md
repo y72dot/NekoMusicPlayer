@@ -22,7 +22,7 @@ sudo systemctl reload nginx
 curl --fail http://127.0.0.1/healthz
 ```
 
-5. 为公网域名配置 HTTPS；生产 `PUBLIC_URL` 必须使用 HTTPS。
+5. 为公网域名 `https://music.72dot.cn` 配置 HTTPS。
 
 ## 3. GitHub 配置
 
@@ -31,10 +31,7 @@ curl --fail http://127.0.0.1/healthz
 - `SSH_HOST`
 - `SSH_USER`
 - `SSH_PASSWORD`（后续建议迁移为受限 SSH Key）
-- `SSH_KNOWN_HOSTS`
-- `PUBLIC_URL`，例如 `https://music.example.com`
-
-`SSH_KNOWN_HOSTS` 必须从可信管理通道获取并人工比对，不应在未验证网络上直接接受首次连接结果。
+当前部署不要求额外配置 `SSH_KNOWN_HOSTS` 或 `PUBLIC_URL`：域名固定为 `https://music.72dot.cn`，服务器 Ed25519 主机公钥已从服务器控制台取得并固定在工作流中。服务器重装或主机密钥轮换时，需要通过可信控制台更新仓库中的公钥。
 
 同时：
 
@@ -47,7 +44,7 @@ curl --fail http://127.0.0.1/healthz
 1. CI 安装依赖、类型检查、运行单测/E2E并构建。
 2. 已验证的 `dist` 上传到新的版本目录。
 3. `manage-release.sh activate` 原子切换 `current`，并保存上一版本位置。
-4. GitHub Runner 请求 `$PUBLIC_URL/healthz` 和 `$PUBLIC_URL/`。
+4. GitHub Runner 请求 `https://music.72dot.cn/healthz` 和站点首页。
 5. 检查失败时执行 `rollback`；成功时执行 `finalize` 并只保留最近五个版本。
 
 ## 5. 人工烟雾检查

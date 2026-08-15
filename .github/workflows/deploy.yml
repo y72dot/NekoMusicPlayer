@@ -78,19 +78,16 @@ jobs:
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           SSH_USER: ${{ secrets.SSH_USER }}
-          PUBLIC_URL: ${{ secrets.PUBLIC_URL }}
+          PUBLIC_URL: https://music.72dot.cn
         run: |
           set -euo pipefail
           test -n "$SSH_HOST"
           test -n "$SSH_USER"
-          test -n "$SSH_KNOWN_HOSTS"
-          test -n "$PUBLIC_URL"
-          case "$PUBLIC_URL" in https://*) ;; *) echo "PUBLIC_URL must use HTTPS" >&2; exit 2 ;; esac
           sudo apt-get install -y sshpass
           mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' '124.221.182.13 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB1aihNvsJykvm35eT1+VsGcb4tRa2hld6NqH+MUV8i/' > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
           rsync -e "sshpass -e ssh" \
             -rltgoDzvO --delete \
             dist/ "$SSH_USER@$SSH_HOST:/var/www/nekomusic/releases/${{ github.run_id }}/"

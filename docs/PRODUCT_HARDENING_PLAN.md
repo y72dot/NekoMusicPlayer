@@ -55,7 +55,7 @@
 | `node scripts/validate-production.mjs` | 通过 |
 | `git diff --check` | 通过 |
 
-尚未执行的外部事项为 Nginx 安装、GitHub `PUBLIC_URL` 等 Secrets/Environment 配置、推送后 Actions 和线上烟雾检查；这些事项不阻塞后续本地阶段。
+尚未执行的外部事项为 Nginx 安装、推送后 Actions 和线上烟雾检查；生产域名与可信控制台提供的 SSH 主机公钥已固定在工作流中，不再要求额外的域名或主机指纹 Secret。
 
 ### 2.2 阶段 2 执行记录
 
@@ -246,7 +246,7 @@
 
 ### 外部操作
 
-- 配置 GitHub `SSH_KNOWN_HOSTS`、`production` Environment 和分支保护。
+- 配置 GitHub `production` Environment 和分支保护；SSH 主机公钥固定在工作流中，不要求额外 Secret。
 - 将 Nginx 配置安装到生产服务器并执行 `nginx -t`。
 - 推送后观察 Actions，并执行真实线上烟雾检查。
 
@@ -427,7 +427,7 @@ npm run build
 只有执行到以下事项时需要维护者介入：
 
 1. 提供或确认生产域名及服务器 Nginx 配置位置。
-2. 从可信通道采集 SSH 主机指纹并配置 `SSH_KNOWN_HOSTS`。
+2. 确认现有 `SSH_HOST`、`SSH_USER` 和 `SSH_PASSWORD` 可用；服务器主机公钥轮换时从可信控制台更新固定公钥。
 3. 配置 GitHub `production` Environment、审批规则和分支保护。
 4. 安装仓库提供的 Nginx 配置，执行 `nginx -t` 并重载。
 5. 推送后批准生产部署，执行真实线上数据源烟雾测试。

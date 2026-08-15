@@ -23,7 +23,7 @@ if (fs.existsSync('ops/nginx/nekomusic.conf.example')) {
 
 if (fs.existsSync('.github/workflows/deploy.yml')) {
   const workflow = fs.readFileSync('.github/workflows/deploy.yml', 'utf8')
-  for (const marker of ['PUBLIC_URL', 'SSH_KNOWN_HOSTS', '.sh rollback', 'curl --fail']) {
+  for (const marker of ['https://music.72dot.cn', 'AAAAC3NzaC1lZDI1NTE5AAAAIB1aihNvsJykvm35eT1+VsGcb4tRa2hld6NqH+MUV8i/', '.sh rollback', 'curl --fail']) {
     if (!workflow.includes(marker)) failures.push(`deploy workflow missing ${marker}`)
   }
   if (workflow.includes('StrictHostKeyChecking=no')) failures.push('SSH host verification is disabled')

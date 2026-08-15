@@ -29,12 +29,12 @@
 - [x] 部署使用与验证提交一致的构建 Artifact。
 - [x] Playwright 失败诊断配置为 Artifact。
 - [x] SSH 密码不再直接插入命令行。
-- [x] SSH 主机校验不再使用 `StrictHostKeyChecking=no`。
+- [x] SSH 主机公钥已从服务器控制台取得并固定在工作流中，未使用 `StrictHostKeyChecking=no`。
 
 ## 推送后必须完成
 
 - [ ] 推送当前提交到远端分支。
-- [ ] 配置 `SSH_KNOWN_HOSTS` Secret，值从可信渠道获取。
+- [x] 当前部署不要求 `SSH_KNOWN_HOSTS` Secret。
 - [ ] 检查 `production` GitHub Environment，并建议启用人工审批。
 - [ ] 为 `main` 启用分支保护和必需质量检查。
 - [ ] 观察首次 GitHub Actions，确认 Node 20、Chromium 和 Ubuntu 环境通过。
@@ -49,7 +49,7 @@
 出现下列任一情况时不得创建正式 Release：
 
 - 类型检查、单元测试、构建或 E2E 在 CI 中失败。
-- `SSH_KNOWN_HOSTS` 未配置或主机指纹来源不可信。
+- 工作流中的固定 SSH 主机公钥与服务器控制台提供的公钥不一致。
 - 生产环境缺少必要 Secret、权限或回滚条件。
 - 版本号、标签、Release 和部署提交不一致。
 - 存在未说明的 P0/P1 问题。
