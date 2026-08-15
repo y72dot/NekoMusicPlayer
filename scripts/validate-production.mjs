@@ -20,6 +20,7 @@ if (fs.existsSync('ops/nginx/nekomusic.conf.example')) {
   }
   if (!nginx.includes('bilivideo\\.com|hdslb\\.com')) failures.push('nginx CDN allowlist missing')
   if (!nginx.includes('\\.music\\.126\\.net')) failures.push('NetEase media allowlist missing')
+  if (/^\+\s+(?:location|server|proxy_)/m.test(nginx)) failures.push('nginx config contains a patch marker')
   if (/proxy_pass\s+\$scheme:\/\//.test(nginx)) failures.push('nginx contains an unrestricted scheme proxy')
 }
 

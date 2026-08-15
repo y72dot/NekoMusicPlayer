@@ -97,7 +97,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
     }
 
-+    location /api/bilibili-audio/ {
+    location /api/bilibili-audio/ {
         proxy_pass https://www.bilibili.com/;
         proxy_ssl_server_name on;
         proxy_ssl_verify on;
