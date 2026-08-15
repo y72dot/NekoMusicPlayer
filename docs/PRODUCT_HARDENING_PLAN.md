@@ -464,3 +464,5 @@ npm run build
 ## 17. 2026-08-15 网易 CDN 二次回归处置
 
 第二份线上日志确认：直接把网易返回的 HTTP 签名音频 URL 升级为 HTTPS 会导致 CDN 返回 403，浏览器直连 CDN 的元数据 `fetch` 同时受 CORS 限制。协议升级方案因此撤回，改为严格白名单的同源 `/api/netease-media/<http|https>/<host>/...` 代理；代理保留原始协议、主机、路径和签名查询参数，只允许 `*.music.126.net`，并向上游设置网易 Referer。开发服务器与生产 Nginx 使用相同的目标校验规则。
+
+服务器手动发布提交 `9a6f534` 时，应用构建、202 项单测、生产构建、结构校验、原子切换及健康检查均通过；finalize 因历史版本文件归属旧 `deploy` 用户而无法删除最旧版本。统一 `/var/www/nekomusic/releases` 为 `ubuntu:deploy` 后再次 finalize 成功，当前指针为 `/var/www/nekomusic/releases/20260815132722`，保留五个版本。发布脚本随后调整为旧版清理失败只告警，不再把已通过健康检查的部署误报失败。

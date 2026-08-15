@@ -66,6 +66,8 @@ bash ops/deploy/deploy-from-server.sh main
 5. 要求 `https://music.72dot.cn/healthz` 返回 HTTP 200 且正文精确为 `ok`，随后检查站点首页。
 6. 检查失败时自动 `rollback`；成功时 `finalize`，只保留最近五个版本。
 
+旧版本清理失败不会回滚已经通过健康检查的新版本；脚本会打印警告并保留无法删除的目录，维护者修正目录权限后可再次执行 `manage-release.sh finalize <release-id>`。
+
 默认发布 `main`，也可以传入其他明确分支。`PUBLIC_URL` 和 `DEPLOY_ROOT` 可通过环境变量覆盖；生产环境通常保持默认值。
 
 ## 5. 人工烟雾检查

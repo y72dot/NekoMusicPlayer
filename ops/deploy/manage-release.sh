@@ -38,11 +38,13 @@ case "$action" in
     rm -f "$state_file"
     ;;
   finalize)
-    rm -f "$state_file"
     mapfile -t old_releases < <(find "$releases_dir" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -nr | tail -n +6 | cut -d' ' -f2-)
     for old_release in "${old_releases[@]}"; do
-      [[ "$old_release" == "$release_dir" ]] || rm -rf -- "$old_release"
+      if [[ "$old_release" != "$release_dir" ]] && ! rm -rf -- "$old_release"; then
+        echo "warning: could not remove old release: $old_release" >&2
+      fi
     done
+    rm -f "$state_file"
     ;;
   *)
     echo "usage: $0 {activate|rollback|finalize} RELEASE_ID" >&2
