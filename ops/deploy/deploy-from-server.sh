@@ -4,6 +4,10 @@ set -Eeuo pipefail
 branch="${1:-main}"
 public_url="${PUBLIC_URL:-https://music.72dot.cn}"
 deploy_root="${DEPLOY_ROOT:-/var/www/nekomusic}"
+playback_cookie_file="${PLAYBACK_ACCEPTANCE_COOKIE_FILE:-}"
+playback_csrf_file="${PLAYBACK_ACCEPTANCE_CSRF_FILE:-}"
+playback_track_id="${PLAYBACK_ACCEPTANCE_TRACK_ID:-347230}"
+require_playback_acceptance="${REQUIRE_PLAYBACK_ACCEPTANCE:-0}"
 export DEPLOY_ROOT="$deploy_root"
 
 if [[ ! "$branch" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
@@ -65,6 +69,25 @@ activated=1
 health_body="$(curl --fail --silent --show-error --retry 4 --retry-all-errors --max-time 15 "$public_url/healthz")"
 test "$health_body" = "ok"
 curl --fail --silent --show-error --retry 4 --retry-all-errors --max-time 15 "$public_url/" >/dev/null
+
+if [[ -n "$playback_cookie_file" ]]; then
+  test -r "$playback_cookie_file"
+  playback_args=(
+    --base-url "$public_url"
+    --cookie-file "$playback_cookie_file"
+    --track-id "$playback_track_id"
+  )
+  if [[ -n "$playback_csrf_file" ]]; then
+    test -r "$playback_csrf_file"
+    playback_args+=(--csrf-file "$playback_csrf_file")
+  fi
+  node scripts/accept-production-playback.mjs "${playback_args[@]}"
+elif [[ "$require_playback_acceptance" == "1" ]]; then
+  echo "production playback acceptance is required but PLAYBACK_ACCEPTANCE_COOKIE_FILE is not configured" >&2
+  false
+else
+  echo "warning: live playback acceptance skipped; configure PLAYBACK_ACCEPTANCE_COOKIE_FILE to enable it" >&2
+fi
 
 bash "$manage_script" finalize "$release_id"
 activated=0

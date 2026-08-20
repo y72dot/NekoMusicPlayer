@@ -86,6 +86,7 @@ describe('NeteaseClient', () => {
       })
 
       await expect(client.getSongDetail(['123'])).rejects.toThrow()
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1)
     })
 
     it('should throw on HTTP 301', async () => {
@@ -104,6 +105,21 @@ describe('NeteaseClient', () => {
       )
 
       await expect(client.getSongDetail(['123'])).rejects.toThrow('timed out')
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('should retry one transient upstream failure', async () => {
+      const mockResponse = { code: 200, songs: [{ id: 123, name: 'Recovered' }] }
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({ ok: false, status: 503, statusText: 'Service Unavailable' })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockResponse),
+        })
+
+      await expect(client.getSongDetail(['123'])).resolves.toEqual(mockResponse)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2)
     })
   })
 

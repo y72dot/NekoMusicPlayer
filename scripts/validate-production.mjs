@@ -6,6 +6,7 @@ const requiredFiles = [
   'ops/nginx/music.72dot.cn.conf',
   'ops/deploy/manage-release.sh',
   'ops/deploy/deploy-from-server.sh',
+  'scripts/accept-production-playback.mjs',
 ]
 
 const failures = []
@@ -30,7 +31,7 @@ if (fs.existsSync('.github/workflows/deploy.yml')) {
 
 if (fs.existsSync('ops/deploy/deploy-from-server.sh')) {
   const deployScript = fs.readFileSync('ops/deploy/deploy-from-server.sh', 'utf8')
-  for (const marker of ['git -C "$repo_root" fetch', 'npm run check', 'manage-release.sh', 'activate "$release_id"', 'rollback "$release_id"', 'test "$health_body" = "ok"']) {
+  for (const marker of ['git -C "$repo_root" fetch', 'npm run check', 'manage-release.sh', 'activate "$release_id"', 'rollback "$release_id"', 'test "$health_body" = "ok"', 'accept-production-playback.mjs', 'REQUIRE_PLAYBACK_ACCEPTANCE']) {
     if (!deployScript.includes(marker)) failures.push(`manual deploy script missing ${marker}`)
   }
 }

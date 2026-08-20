@@ -310,7 +310,7 @@ describe('Playback Roundtrip', () => {
       registry.register(neteaseAdapter)
     })
 
-    it('7.1 load → cache → refresh → load again (cache hit, no network)', async () => {
+    it('7.1 cold cache → stream URL → refresh → obtain a fresh signed URL without prefetch', async () => {
       neteaseClientMocks.getSongUrl.mockResolvedValue({
         code: 200,
         data: [{ url: 'https://m8.music.126.net/netease-song.mp3' }],
@@ -324,28 +324,28 @@ describe('Playback Roundtrip', () => {
         sourceRef: { type: 'song', songId: '12345678' },
       }
 
-      // === Phase 1: Initial load ===
+      const getSongUrlCallsBefore = neteaseClientMocks.getSongUrl.mock.calls.length
+      const fetchCallsBefore = fetchMock.mock.calls.length
+
+      // === Phase 1: Initial cold-cache load ===
       await playerEngine.load(track)
 
-      expect(neteaseClientMocks.getSongUrl).toHaveBeenCalled()
-      expect(fetchMock).toHaveBeenCalledWith('/api/netease-media/https/m8.music.126.net/netease-song.mp3')
-      expect(mockAudioInstance.src).toMatch(/^blob:mock-/)
+      expect(neteaseClientMocks.getSongUrl).toHaveBeenCalledTimes(getSongUrlCallsBefore + 1)
+      expect(fetchMock).toHaveBeenCalledTimes(fetchCallsBefore)
+      expect(mockAudioInstance.src).toBe('/api/netease-media/https/m8.music.126.net/netease-song.mp3')
       const phase1Src = mockAudioInstance.src
 
       const cached = await audioCache.get(track.uri)
-      expect(cached).toBeInstanceOf(Blob)
+      expect(cached).toBeUndefined()
+      const revokeCallsAfterStreamingLoad = urlMocks.revokeObjectURL.mock.calls.length
 
-      const getSongUrlCalls = neteaseClientMocks.getSongUrl.mock.calls.length
-      const fetchCalls = fetchMock.mock.calls.length
-
-      // === Phase 2: "Refresh" ===
+      // === Phase 2: "Refresh" obtains a new short-lived signed URL. ===
       await playerEngine.load(track)
 
-      expect(neteaseClientMocks.getSongUrl).toHaveBeenCalledTimes(getSongUrlCalls)
-      expect(fetchMock).toHaveBeenCalledTimes(fetchCalls)
-      expect(mockAudioInstance.src).toMatch(/^blob:mock-/)
-      expect(mockAudioInstance.src).not.toBe(phase1Src)
-      expect(urlMocks.revokeObjectURL).toHaveBeenCalledWith(phase1Src)
+      expect(neteaseClientMocks.getSongUrl).toHaveBeenCalledTimes(getSongUrlCallsBefore + 2)
+      expect(fetchMock).toHaveBeenCalledTimes(fetchCallsBefore)
+      expect(mockAudioInstance.src).toBe(phase1Src)
+      expect(urlMocks.revokeObjectURL).toHaveBeenCalledTimes(revokeCallsAfterStreamingLoad)
     })
   })
 

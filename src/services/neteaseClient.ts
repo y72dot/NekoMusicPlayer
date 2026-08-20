@@ -12,6 +12,12 @@ import { AdapterError, asAdapterError } from '@/adapters/adapterError'
 
 const API_BASE = `${API_PATHS.netease}/weapi`
 const TIMEOUT_MS = 15000
+const MAX_ATTEMPTS = 2
+const RETRY_DELAY_MS = 250
+
+function wait(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
 
 export class NeteaseClient {
   private async weapi<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
@@ -29,34 +35,45 @@ export class NeteaseClient {
       headers[UPSTREAM_COOKIE_HEADER] = `MUSIC_U=${settings.settings.neteaseCookie}; __csrf=${csrf}`
     }
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: formBody,
-        signal: controller.signal,
-      })
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formBody,
+          signal: controller.signal,
+        })
 
-      if (response.status === 301 || response.status === 401 || response.status === 403) {
-        throw new AdapterError('AUTH_REQUIRED', 'Cookie expired, please re-obtain from music.163.com', 'netease')
+        if (response.status === 301 || response.status === 401 || response.status === 403) {
+          throw new AdapterError('AUTH_REQUIRED', 'Cookie expired, please re-obtain from music.163.com', 'netease')
+        }
+
+        if (!response.ok) {
+          const retryable = response.status === 408 || response.status === 429 || response.status >= 500
+          throw new AdapterError(
+            retryable ? 'PROXY_UNAVAILABLE' : 'UNKNOWN',
+            `Request failed: ${response.status} ${response.statusText}`,
+            'netease',
+            retryable,
+          )
+        }
+
+        return (await response.json()) as T
+      } catch (e) {
+        const error = e instanceof DOMException && e.name === 'AbortError'
+          ? new AdapterError('TIMEOUT', 'Request timed out, please check your network', 'netease', true)
+          : asAdapterError(e, 'netease')
+        if (!error.retryable || attempt === MAX_ATTEMPTS) throw error
+        await wait(RETRY_DELAY_MS)
+      } finally {
+        clearTimeout(timer)
       }
-
-      if (!response.ok) {
-        throw new AdapterError('PROXY_UNAVAILABLE', `Request failed: ${response.status} ${response.statusText}`, 'netease', true)
-      }
-
-      return (await response.json()) as T
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') {
-        throw new AdapterError('TIMEOUT', 'Request timed out, please check your network', 'netease', true)
-      }
-      throw asAdapterError(e, 'netease')
-    } finally {
-      clearTimeout(timer)
     }
+
+    throw new AdapterError('UNKNOWN', 'NetEase request did not complete', 'netease')
   }
 
   async getSongDetail(ids: string[]): Promise<NeteaseSongDetail> {

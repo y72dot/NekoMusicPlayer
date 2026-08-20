@@ -5,12 +5,22 @@ import { UriResolver } from '@/core/uriResolver'
 import { NeteaseClient } from '@/services/neteaseClient'
 import { useSettingsStore } from '@/store/settings'
 import { audioCache } from '@/services/audioCache'
-import * as mm from 'music-metadata'
 import { AdapterError } from '@/adapters/adapterError'
 import { toNeteaseMediaProxyUrl } from '@/config/proxy'
 
 const NETBASE_URL_PATTERN = /music\.163\.com/
 const SONG_ID_PATTERN = /^\d{4,}$/
+
+function secureAssetUrl(rawUrl: string | undefined): string | undefined {
+  if (!rawUrl) return undefined
+  try {
+    const url = new URL(rawUrl)
+    if (url.protocol === 'http:') url.protocol = 'https:'
+    return url.toString()
+  } catch {
+    return rawUrl
+  }
+}
 
 class NeteaseAdapter implements SourceAdapter {
   id = 'netease'
@@ -149,37 +159,12 @@ class NeteaseAdapter implements SourceAdapter {
       throw new AdapterError('ACCESS_DENIED', 'Playback URL host is not allowed', this.id)
     }
 
-    // Fetch as blob and parse metadata
-    try {
-      const response = await fetch(songUrl)
-      if (!response.ok) {
-        // Fallback: return URL directly if fetch fails
-        return { url: songUrl }
-      }
-      const blob = await response.blob()
-
-      let metadata: LoadByUriMetadata | undefined
-      try {
-        const meta = await mm.parseBlob(blob)
-        const fmt = meta.format
-        metadata = {
-          sampleRate: fmt.sampleRate,
-          bitrate: fmt.bitrate,
-          bitDepth: fmt.bitsPerSample,
-          channels: fmt.numberOfChannels,
-          codec: fmt.codec,
-          container: fmt.container,
-          lossless: fmt.lossless,
-        }
-      } catch {
-        // Metadata parsing failed, audio still playable
-      }
-
-      return { url: blob, metadata }
-    } catch {
-      // Fallback: return URL directly
-      return { url: songUrl }
-    }
+    // Hand the same-origin URL directly to HTMLMediaElement. Fetching an entire
+    // track into a Blob before playback defeats HTTP Range streaming, delays the
+    // first audible frame and can duplicate a failed request when the fallback
+    // URL is assigned afterwards. Existing IndexedDB blobs are still consumed
+    // above, but cold-cache playback always uses the streaming proxy.
+    return { url: songUrl }
   }
 
   private mapSongToTrack(song: NeteaseSong): Track {
@@ -191,7 +176,7 @@ class NeteaseAdapter implements SourceAdapter {
       title: song.name,
       artist: song.ar?.map((a) => a.name).join(', '),
       album: song.al?.name,
-      coverUrl: song.al?.picUrl,
+      coverUrl: secureAssetUrl(song.al?.picUrl),
       duration: song.dt ? song.dt / 1000 : undefined,
       sourceId: this.id,
       sourceRef: { type: 'song', songId: String(song.id) },

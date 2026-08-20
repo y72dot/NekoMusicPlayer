@@ -9,6 +9,7 @@
 - 网易签名音频通过 `/api/netease-media/<http|https>/<host>/...` 保留原协议转发，仅允许 `*.music.126.net` 子域，避免混合内容、CORS 和签名失效。
 - 网易云和 Bilibili 凭据通过 `X-Neko-Upstream-Cookie` 到达同源 Nginx，再转换为上游 `Cookie`；该请求头不得进入访问日志。
 - Bilibili CDN 只允许 `*.bilivideo.com` 和 `*.hdslb.com` 的 HTTPS 子域名。
+- 播放验收的完整设计、凭据隔离和故障分类见 `docs/PLAYBACK_ACCEPTANCE_PLAN.md`。
 
 ## 2. 首次服务器配置
 
@@ -64,11 +65,21 @@ bash ops/deploy/deploy-from-server.sh main
 3. 将已验证的 `dist` 复制到新的时间戳版本目录，并记录 `COMMIT`。
 4. `manage-release.sh activate` 原子切换 `current`，并保存上一版本位置。
 5. 要求 `https://music.72dot.cn/healthz` 返回 HTTP 200 且正文精确为 `ok`，随后检查站点首页。
-6. 检查失败时自动 `rollback`；成功时 `finalize`，只保留最近五个版本。
+6. 配置 `PLAYBACK_ACCEPTANCE_COOKIE_FILE` 后，通过真实网易云 API 和 64 KiB Range 媒体请求验证冷缓存播放链路。
+7. 任一健康或播放检查失败时自动 `rollback`；全部成功才 `finalize`，只保留最近五个版本。
 
 旧版本清理失败不会回滚已经通过健康检查的新版本；脚本会打印警告并保留无法删除的目录，维护者修正目录权限后可再次执行 `manage-release.sh finalize <release-id>`。
 
 默认发布 `main`，也可以传入其他明确分支。`PUBLIC_URL` 和 `DEPLOY_ROOT` 可通过环境变量覆盖；生产环境通常保持默认值。
+
+生产环境推荐强制真实播放验收：
+
+```bash
+REQUIRE_PLAYBACK_ACCEPTANCE=1 \
+PLAYBACK_ACCEPTANCE_COOKIE_FILE=/etc/nekomusic/netease-acceptance.cookie \
+PLAYBACK_ACCEPTANCE_TRACK_ID=347230 \
+bash ops/deploy/deploy-from-server.sh main
+```
 
 ## 5. 人工烟雾检查
 

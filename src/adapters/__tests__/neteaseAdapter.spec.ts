@@ -142,6 +142,21 @@ describe('NeteaseAdapter', () => {
       expect(tracks[0].duration).toBe(240)
     })
 
+    it('upgrades insecure cover artwork without changing track identity', async () => {
+      mockWeapi.mockResolvedValueOnce({
+        code: 200,
+        songs: [{
+          ...mockSong(12345678, 'HTTP Cover'),
+          al: { id: 1, name: 'Test Album', picUrl: 'http://p1.music.126.net/cover.jpg' },
+        }],
+      })
+
+      const [track] = await neteaseAdapter.resolve('12345678')
+
+      expect(track.coverUrl).toBe('https://p1.music.126.net/cover.jpg')
+      expect(track.uri).toContain('neko://netease/track/12345678')
+    })
+
     it('should resolve a numeric ID as a song', async () => {
       mockWeapi.mockResolvedValueOnce({
         code: 200,
@@ -247,8 +262,20 @@ describe('NeteaseAdapter', () => {
 
       const result = await neteaseAdapter.loadByUri('12345678', { quality: 'standard' })
 
-      expect(fetch).toHaveBeenCalledWith('/api/netease-media/http/m10.music.126.net/stream.mp3?token=test')
+      expect(fetch).not.toHaveBeenCalled()
       expect(result.url).toBe('/api/netease-media/http/m10.music.126.net/stream.mp3?token=test')
+    })
+
+    it('starts cold-cache playback without prefetching the whole track', async () => {
+      mockWeapi.mockResolvedValueOnce({
+        code: 200,
+        data: [{ id: 123, url: 'https://m8.music.126.net/large.mp3?token=test', br: 320000, size: 50_000_000, type: 'mp3' }],
+      })
+
+      const result = await neteaseAdapter.loadByUri('12345678', { quality: 'standard' })
+
+      expect(result).toEqual({ url: '/api/netease-media/https/m8.music.126.net/large.mp3?token=test' })
+      expect(fetch).not.toHaveBeenCalled()
     })
 
     it('rejects a playback URL outside the NetEase media allowlist', async () => {

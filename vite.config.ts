@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
+import { Readable } from 'node:stream'
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -99,7 +100,11 @@ function neteaseMediaProxy(): Plugin {
           }
           res.setHeader('Cache-Control', 'private, max-age=300')
           res.setHeader('X-Content-Type-Options', 'nosniff')
-          res.end(Buffer.from(await response.arrayBuffer()))
+          if (!response.body) {
+            res.end()
+            return
+          }
+          Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).pipe(res)
         } catch (e) {
           console.error('[netease-media] Proxy error:', e)
           res.statusCode = 502
@@ -132,16 +137,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.*\.(mp3|wav|ogg|flac|aac|m4a)$/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'audio-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 86400 },
-            },
-          },
-        ],
+        // Range media responses must never be served from Workbox's generic
+        // runtime cache. The application owns its explicit IndexedDB blobs;
+        // cold-cache network playback stays a normal streaming request.
+        cleanupOutdatedCaches: true,
       },
     }),
     neteaseMediaProxy(),
